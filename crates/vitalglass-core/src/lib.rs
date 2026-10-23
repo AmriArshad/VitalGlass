@@ -2,6 +2,7 @@
 //!
 //! Shared by the spike CLI now and the Tauri backend later.
 
+pub mod auth;
 pub mod config;
 
 // Re-exported so callers build the HTTP client with the same version.
