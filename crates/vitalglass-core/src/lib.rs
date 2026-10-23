@@ -2,6 +2,7 @@
 //!
 //! Shared by the spike CLI now and the Tauri backend later.
 
+pub mod api;
 pub mod auth;
 pub mod config;
 
