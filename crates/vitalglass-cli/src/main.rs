@@ -131,7 +131,7 @@ fn cmd_summary() -> anyhow::Result<()> {
     }
     for e in workouts {
         println!(
-            "  {} {:<16} {:>7}  avg HR {:>3}  {:>4} kcal  {}",
+            "  {} {:<18} {:>7}  avg HR {:>3}  {:>4} kcal  {}",
             local_time(&e.start_utc),
             e.display_name.or(e.exercise_type).unwrap_or_default(),
             mins(e.active_duration_s.map(|s| s / 60)),

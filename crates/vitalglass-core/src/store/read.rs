@@ -2,6 +2,8 @@
 //!
 //! Row structs derive `Serialize` so Tauri can hand them straight to the
 //! frontend. Dates are `YYYY-MM-DD` strings, instants RFC 3339 UTC.
+//! Session queries read the `visible_*` views, which hide duplicate
+//! sessions echoed through Health Connect (see migration 2).
 
 use chrono::NaiveDate;
 use rusqlite::{Row, params};
@@ -58,6 +60,10 @@ pub struct ExerciseRow {
     pub start_offset_s: Option<i64>,
     pub exercise_type: Option<String>,
     pub display_name: Option<String>,
+    /// `FITBIT` or `HEALTH_CONNECT`.
+    pub source_platform: Option<String>,
+    /// Health Connect app, e.g. `com.hevy`.
+    pub source_app: Option<String>,
     pub active_duration_s: Option<i64>,
     pub avg_hr: Option<i64>,
     pub calories_kcal: Option<f64>,
@@ -146,7 +152,7 @@ impl Store {
         self.query(
             "SELECT id, start_utc, end_utc, civil_end_date, sleep_type, main_sleep, minutes_asleep,
                     minutes_awake, minutes_in_period, minutes_deep, minutes_light, minutes_rem
-             FROM sleep_sessions WHERE civil_end_date >= ?1 AND civil_end_date < ?2 ORDER BY end_utc",
+             FROM visible_sleep_sessions WHERE civil_end_date >= ?1 AND civil_end_date < ?2 ORDER BY end_utc",
             params![from.to_string(), to.to_string()],
             sleep_row,
         )
@@ -158,7 +164,7 @@ impl Store {
             .query(
                 "SELECT id, start_utc, end_utc, civil_end_date, sleep_type, main_sleep, minutes_asleep,
                         minutes_awake, minutes_in_period, minutes_deep, minutes_light, minutes_rem
-                 FROM sleep_sessions WHERE main_sleep = 1 ORDER BY end_utc DESC LIMIT 1",
+                 FROM visible_sleep_sessions WHERE main_sleep = 1 ORDER BY end_utc DESC LIMIT 1",
                 [],
                 sleep_row,
             )?
@@ -169,8 +175,8 @@ impl Store {
     pub fn recent_exercises(&self, limit: u32) -> Result<Vec<ExerciseRow>, Error> {
         self.query(
             "SELECT id, start_utc, end_utc, start_offset_s, exercise_type, display_name,
-                    active_duration_s, avg_hr, calories_kcal, distance_m
-             FROM exercises ORDER BY start_utc DESC LIMIT ?1",
+                    source_platform, source_app, active_duration_s, avg_hr, calories_kcal, distance_m
+             FROM visible_exercises ORDER BY start_utc DESC LIMIT ?1",
             [limit],
             |r| {
                 Ok(ExerciseRow {
@@ -180,10 +186,12 @@ impl Store {
                     start_offset_s: r.get(3)?,
                     exercise_type: r.get(4)?,
                     display_name: r.get(5)?,
-                    active_duration_s: r.get(6)?,
-                    avg_hr: r.get(7)?,
-                    calories_kcal: r.get(8)?,
-                    distance_m: r.get(9)?,
+                    source_platform: r.get(6)?,
+                    source_app: r.get(7)?,
+                    active_duration_s: r.get(8)?,
+                    avg_hr: r.get(9)?,
+                    calories_kcal: r.get(10)?,
+                    distance_m: r.get(11)?,
                 })
             },
         )

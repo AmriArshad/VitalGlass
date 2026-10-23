@@ -101,6 +101,7 @@ pub struct HeartRateRollup {
 pub struct DataPoint {
     /// Resource name; set for identifiable types such as sleep and exercise.
     pub name: Option<String>,
+    pub data_source: Option<DataSource>,
     pub daily_resting_heart_rate: Option<DailyRestingHeartRate>,
     pub daily_heart_rate_variability: Option<DailyHeartRateVariability>,
     pub daily_oxygen_saturation: Option<DailyOxygenSaturation>,
@@ -109,6 +110,32 @@ pub struct DataPoint {
     pub sleep: Option<Sleep>,
     pub exercise: Option<Exercise>,
     pub weight: Option<Weight>,
+}
+
+/// Where a data point came from.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataSource {
+    /// `FITBIT`, `HEALTH_CONNECT`, ...
+    pub platform: Option<String>,
+    pub application: Option<Application>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Application {
+    /// Android package name for Health Connect sources, e.g. `com.hevy`.
+    pub package_name: Option<String>,
+}
+
+impl DataPoint {
+    pub fn source_platform(&self) -> Option<&str> {
+        self.data_source.as_ref()?.platform.as_deref()
+    }
+
+    pub fn source_app(&self) -> Option<&str> {
+        self.data_source.as_ref()?.application.as_ref()?.package_name.as_deref()
+    }
 }
 
 #[derive(Debug, Deserialize)]

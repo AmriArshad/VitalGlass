@@ -120,8 +120,9 @@ impl Store {
                 "INSERT OR REPLACE INTO sleep_sessions (
                      id, start_utc, end_utc, start_offset_s, end_offset_s, civil_end_date,
                      sleep_type, main_sleep, nap, minutes_asleep, minutes_awake, minutes_in_period,
-                     minutes_to_fall_asleep, minutes_deep, minutes_light, minutes_rem, raw_json)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                     minutes_to_fall_asleep, minutes_deep, minutes_light, minutes_rem, raw_json,
+                     source_platform, source_app)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
                 params![
                     p.name.clone().unwrap_or_else(|| format!("sleep/{}", utc(i.start_time))),
                     utc(i.start_time),
@@ -140,6 +141,8 @@ impl Store {
                     stage("LIGHT"),
                     stage("REM"),
                     raw.to_string(),
+                    p.source_platform(),
+                    p.source_app(),
                 ],
             )?;
             n += 1;
@@ -172,8 +175,9 @@ impl Store {
             tx.execute(
                 "INSERT OR REPLACE INTO exercises (
                      id, start_utc, end_utc, start_offset_s, civil_start_date, exercise_type,
-                     display_name, active_duration_s, avg_hr, calories_kcal, distance_m, steps, azm, raw_json)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                     display_name, active_duration_s, avg_hr, calories_kcal, distance_m, steps, azm, raw_json,
+                     source_platform, source_app)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 params![
                     p.name
                         .clone()
@@ -191,6 +195,8 @@ impl Store {
                     m.and_then(|m| m.steps),
                     m.and_then(|m| m.active_zone_minutes),
                     raw.to_string(),
+                    p.source_platform(),
+                    p.source_app(),
                 ],
             )?;
             n += 1;

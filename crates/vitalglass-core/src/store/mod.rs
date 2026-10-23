@@ -21,7 +21,7 @@ use crate::Error;
 
 /// Schema migrations, applied in order. SQLite's `user_version` pragma
 /// records how many have run. Never edit a released migration; add a new one.
-const MIGRATIONS: &[&str] = &[include_str!("schema.sql")];
+const MIGRATIONS: &[&str] = &[include_str!("001_initial.sql"), include_str!("002_session_sources.sql")];
 
 pub struct Store {
     conn: Connection,
@@ -171,5 +171,26 @@ mod tests {
             .unwrap();
         store.set_sync_state("steps", "error", Some("boom"), None).unwrap();
         assert_eq!(store.backfilled_from("steps").unwrap(), Some(d("2026-09-01")));
+    }
+
+    #[test]
+    fn hides_fitness_app_echoes() {
+        let store = Store::open_in_memory().unwrap();
+        let insert = |id: &str, app: Option<&str>| {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO exercises (id, start_utc, end_utc, civil_start_date, raw_json, source_app)
+                     VALUES (?1, '2026-10-23T05:01:00Z', '2026-10-23T06:30:00Z', '2026-10-23', '{}', ?2)",
+                    params![id, app],
+                )
+                .unwrap();
+        };
+        insert("fitbit", None);
+        insert("echo", Some("com.google.android.apps.fitness"));
+        insert("hevy", Some("com.hevy"));
+        let mut ids: Vec<String> = store.recent_exercises(10).unwrap().into_iter().map(|e| e.id).collect();
+        ids.sort();
+        assert_eq!(ids, ["fitbit", "hevy"]);
     }
 }
