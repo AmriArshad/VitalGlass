@@ -5,6 +5,8 @@
 pub mod api;
 pub mod auth;
 pub mod config;
+pub mod session;
+pub mod token_store;
 
 // Re-exported so callers build the HTTP client with the same version.
 pub use reqwest;
@@ -47,6 +49,10 @@ pub enum Error {
 
     #[error("network: {0}")]
     Http(#[from] reqwest::Error),
+
+    /// The OS keyring (Secret Service / KWallet) is unavailable or failed.
+    #[error("keyring: {0}")]
+    Keyring(String),
 
     #[error("I/O: {0}")]
     Io(#[from] std::io::Error),
