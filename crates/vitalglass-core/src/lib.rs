@@ -8,6 +8,7 @@ pub mod config;
 pub mod models;
 pub mod session;
 pub mod store;
+pub mod sync;
 pub mod token_store;
 pub mod units;
 
