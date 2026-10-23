@@ -5,8 +5,11 @@
 pub mod api;
 pub mod auth;
 pub mod config;
+pub mod models;
 pub mod session;
+pub mod store;
 pub mod token_store;
+pub mod units;
 
 // Re-exported so callers build the HTTP client with the same version.
 pub use reqwest;
@@ -53,6 +56,9 @@ pub enum Error {
     /// The OS keyring (Secret Service / KWallet) is unavailable or failed.
     #[error("keyring: {0}")]
     Keyring(String),
+
+    #[error("database: {0}")]
+    Db(#[from] rusqlite::Error),
 
     #[error("I/O: {0}")]
     Io(#[from] std::io::Error),
