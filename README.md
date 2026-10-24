@@ -187,7 +187,8 @@ Then open `http://localhost:5174/?mock` (add `&theme=breeze-light&range=7` to pr
 
 | Symptom | Fix |
 |---|---|
-| Blank window or `Error 71 (Protocol error) dispatching to Wayland display` | A WebKitGTK bug with NVIDIA on Wayland. VitalGlass already sets `WEBKIT_DISABLE_DMABUF_RENDERER=1`; if you've set it to something else yourself, unset it. |
+| Blank window or `Error 71 (Protocol error) dispatching to Wayland display` | A WebKitGTK crash with NVIDIA's explicit sync on Wayland. VitalGlass sets `__NV_DISABLE_EXPLICIT_SYNC=1` for itself on NVIDIA, which fixes it with full GPU rendering. If it still crashes on your setup, launch with `WEBKIT_DISABLE_DMABUF_RENDERER=1`. That always works, but scrolling drops to about 40 fps. |
+| Scrolling stutters | Check you haven't set `WEBKIT_DISABLE_DMABUF_RENDERER=1` yourself: it makes WebKit copy every frame through the CPU. |
 | "Account not linked" | Sign in to the Google Health app on your phone with the same Google account, then press Retry. |
 | "Session expired" every week | While the OAuth consent screen is in **Testing**, Google expires refresh tokens after 7 days. Sign in again, or move the consent screen to **In production** (you'll see an "unverified app" warning once). |
 | "Permission not granted" on some cards | You unticked a scope on Google's consent screen. Use **Re-authorise** and leave all five ticked. |
