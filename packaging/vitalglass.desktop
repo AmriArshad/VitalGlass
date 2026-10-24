@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=VitalGlass
+GenericName=Health Dashboard
+Comment=Your Google Health stats at a glance
+Exec=@BINDIR@/vitalglass
+Icon=vitalglass
+Terminal=false
+Categories=Utility;
+Keywords=health;fitness;fitbit;sleep;heart;steps;
+StartupNotify=true
+StartupWMClass=vitalglass
