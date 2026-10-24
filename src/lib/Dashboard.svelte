@@ -315,7 +315,7 @@
           labels={HOURS}
           series={[{ label: 'Steps', color: '--series-1', data: stepsByHour }]}
           format={(v) => fmtInt(v)}
-          showTick={(i) => i % 3 === 0}
+          showTick={(i) => i % 6 === 0}
           ariaLabel="Steps per hour today"
           height="fill"
         />
@@ -546,7 +546,8 @@
   }
   .mini-value {
     font-size: 1.45rem;
-    font-weight: 600;
+    font-family: var(--font-numeric);
+    font-weight: var(--value-weight);
     line-height: 1.3;
     font-variant-numeric: tabular-nums;
   }
@@ -564,7 +565,7 @@
   .toggle {
     display: flex;
     border: 1px solid var(--border);
-    border-radius: 5px;
+    border-radius: var(--radius-control);
     overflow: hidden;
   }
   .toggle button {
@@ -622,6 +623,7 @@
   }
   .compare .strong {
     color: var(--text);
-    font-weight: 600;
+    font-family: var(--font-numeric);
+    font-weight: var(--value-weight);
   }
 </style>

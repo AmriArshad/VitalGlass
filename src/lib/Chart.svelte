@@ -108,6 +108,8 @@
   }
 
   onMount(() => {
+    // Charts use the theme's UI font (monospace in Monitor, for example).
+    Chart.defaults.font.family = css('--font-ui')
     const grid = css('--grid')
     const muted = css('--muted')
     chart = new Chart(canvas, {

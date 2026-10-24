@@ -18,6 +18,9 @@ export interface Theme {
 export const THEMES: Theme[] = [
   { id: 'breeze-dark', name: 'Breeze Dark', dark: true, kdeAccent: true },
   { id: 'breeze-light', name: 'Breeze Light', dark: false, kdeAccent: true },
+  { id: 'glass', name: 'Glass', dark: true, kdeAccent: false },
+  { id: 'monitor', name: 'Monitor', dark: true, kdeAccent: false },
+  { id: 'paper', name: 'Paper', dark: false, kdeAccent: false },
 ]
 
 /** What 'system' resolves to for each mode. */

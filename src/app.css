@@ -1,10 +1,10 @@
 /*
-  Base styles shared by every theme. Colours come only from the tokens in
-  themes.css, so nothing here changes per theme.
+  Base styles shared by every theme. Colours, fonts and corner radii come
+  only from the tokens in themes.css, so nothing here changes per theme.
 */
 
 :root {
-  font-family: 'Noto Sans', system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   line-height: 1.5;
   color: var(--text);
@@ -15,7 +15,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  /* Usually the same as --bg; Glass uses a gradient here. */
+  background: var(--page-bg);
 }
 
 .muted {
@@ -36,7 +37,7 @@ button {
   color: var(--text);
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   padding: 0.35rem 0.85rem;
   cursor: pointer;
   display: inline-flex;

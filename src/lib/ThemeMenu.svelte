@@ -63,7 +63,7 @@
     min-width: 13rem;
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-control);
     box-shadow: 0 6px 18px rgb(0 0 0 / 25%);
     padding: 0.35rem;
   }
@@ -77,6 +77,8 @@
     background: none;
     border: 1px solid transparent;
     justify-content: flex-start;
+    text-align: left;
+    white-space: nowrap;
     padding: 0.35rem 0.5rem;
   }
   .menu button:hover {

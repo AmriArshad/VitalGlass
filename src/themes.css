@@ -1,9 +1,11 @@
 /*
-  Themes. Each theme is one block of colour tokens on :root[data-theme=…];
+  Themes. Each theme is one block of tokens on :root[data-theme=…];
   everything else (app.css, components, charts) reads only these tokens.
 
   To add a theme:
-    1. Copy a block below and change the values.
+    1. Copy a block below and change the values. Non-colour tokens (fonts,
+       corner radii, numeral weight, page background) default to the values
+       in the first block, so override only what the theme changes.
     2. Validate the four --series colours against the theme's --surface with
        the dataviz palette validator (CVD separation and 3:1 contrast).
     3. Add it to THEMES in src/lib/theme.svelte.ts.
@@ -13,6 +15,18 @@
   colour for themes that opt in (see theme.svelte.ts).
 */
 
+/* Defaults shared by every theme. */
+:root {
+  --font-ui: 'Noto Sans', system-ui, sans-serif;
+  /* Big numbers: tiles, vitals, the comparison table. */
+  --font-numeric: var(--font-ui);
+  --value-weight: 600;
+  --radius-card: 8px;
+  --radius-control: 5px;
+  --page-bg: var(--bg);
+}
+
+/* --- Breeze Dark (default) ------------------------------------------------ */
 :root,
 :root[data-theme='breeze-dark'] {
   color-scheme: dark;
@@ -38,6 +52,7 @@
   --series-4: #c98500;
 }
 
+/* --- Breeze Light --------------------------------------------------------- */
 :root[data-theme='breeze-light'] {
   color-scheme: light;
   --bg: #eff0f1;
@@ -58,4 +73,91 @@
   --series-2: #eb6834;
   --series-3: #199e70;
   --series-4: #c98500;
+}
+
+/* --- Glass: translucent cards over a deep blue backdrop ------------------- */
+/* No backdrop blur: the backdrop is a smooth gradient, so blur would add
+   GPU work on every scroll frame for almost no visible difference. */
+:root[data-theme='glass'] {
+  color-scheme: dark;
+  --bg: #111c30;
+  --page-bg: radial-gradient(ellipse 80% 60% at 15% 0%, #1f3a63 0%, transparent 70%),
+    radial-gradient(ellipse 70% 60% at 100% 100%, #1b2f55 0%, transparent 70%), #111c30;
+  --surface: rgb(255 255 255 / 6%);
+  --surface-raised: #22304a; /* opaque: menus and tooltips sit on top of cards */
+  --border: rgb(255 255 255 / 12%);
+  --grid: rgb(255 255 255 / 8%);
+  --text: #eef3ff;
+  --muted: #9fb0cc;
+  --accent: #7cc4ff;
+  --on-accent: #0b1a2e;
+  --ok: #4cd08a;
+  --warn: #ffab5c;
+  --bad: #ff7a8a;
+  --shadow: 0 4px 20px rgb(0 0 0 / 25%);
+  --value-weight: 300;
+  --radius-card: 16px;
+  --radius-control: 10px;
+
+  /* Validated against the cards' effective colour over the backdrop (#1f2c45). */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+}
+
+/* --- Monitor: bedside-monitor phosphor green on near-black --------------- */
+:root[data-theme='monitor'] {
+  color-scheme: dark;
+  --bg: #0a0c0b;
+  --surface: #101412;
+  --surface-raised: #161c19;
+  --border: #1f2a24;
+  --grid: #18211c;
+  --text: #d9f7e6;
+  --muted: #6f9a82;
+  --accent: #33e08a;
+  --on-accent: #04130b;
+  --ok: #33e08a;
+  --warn: #e8b13a;
+  --bad: #ff5f5f;
+  --shadow: none;
+  --font-ui: 'Noto Sans Mono', 'DejaVu Sans Mono', ui-monospace, monospace;
+  --value-weight: 500;
+  --radius-card: 3px;
+  --radius-control: 2px;
+
+  /* Green first for the phosphor look; the order keeps every adjacent pair
+     distinguishable with colour-blindness. */
+  --series-1: #199e70;
+  --series-2: #d95926;
+  --series-3: #3987e5;
+  --series-4: #c98500;
+}
+
+/* --- Paper: calm, warm off-white with serif numerals --------------------- */
+:root[data-theme='paper'] {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --surface: #fbf9f4;
+  --surface-raised: #f1ede4;
+  --border: #e2ddd1;
+  --grid: #ebe6db;
+  --text: #2b2a26;
+  --muted: #77716a;
+  --accent: #b4532a;
+  --on-accent: #ffffff;
+  --ok: #3f8f5a;
+  --warn: #b06a10;
+  --bad: #b8433a;
+  --shadow: 0 1px 3px rgb(60 50 30 / 8%);
+  --font-numeric: 'Noto Serif', Georgia, serif;
+  --value-weight: 500;
+  --radius-card: 12px;
+  --radius-control: 8px;
+
+  --series-1: #2a78d6;
+  --series-2: #c0582a;
+  --series-3: #199e70;
+  --series-4: #b58200;
 }

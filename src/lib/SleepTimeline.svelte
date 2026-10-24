@@ -42,9 +42,9 @@
     }),
   )
 
-  /** Whole hours inside the night, every hour or every 2 for long nights. */
+  /** Whole hours inside the night: every hour for short sleeps, every 2 otherwise. */
   const ticks = $derived.by(() => {
-    const step = span > 8 * 3_600_000 ? 2 : 1
+    const step = span > 6 * 3_600_000 ? 2 : 1
     const first = new Date(start)
     first.setMinutes(0, 0, 0)
     first.setHours(first.getHours() + 1)

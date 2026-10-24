@@ -15,7 +15,8 @@
 <style>
   .value {
     font-size: 1.9rem;
-    font-weight: 600;
+    font-family: var(--font-numeric);
+    font-weight: var(--value-weight);
     line-height: 1.1;
     margin: 0;
   }

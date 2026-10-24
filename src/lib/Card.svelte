@@ -45,7 +45,7 @@
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-card);
     box-shadow: var(--shadow);
     padding: 0.85rem 1.1rem 1rem;
     min-width: 0;
