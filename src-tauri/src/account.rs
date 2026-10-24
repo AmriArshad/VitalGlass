@@ -7,21 +7,15 @@
 
 use serde::Serialize;
 use tauri::State;
-use tokio::sync::Mutex;
 use vitalglass_core::Error;
 use vitalglass_core::config::{self, ClientConfig};
 use vitalglass_core::session::Session;
 
-/// App-wide state. The session is created lazily so a missing config file
-/// can be fixed without restarting the app.
-#[derive(Default)]
-pub struct AppState {
-    session: Mutex<Option<Session>>,
-}
+use crate::state::AppState;
 
 /// What the UI should show for the account. Serialised as
 /// `{"state": "signed_in", "missing_scopes": [...]}` and so on.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AccountStatus {
     /// `client_secret.json` is missing or unreadable.
@@ -115,7 +109,7 @@ pub async fn sign_out(state: State<'_, AppState>) -> Result<AccountStatus, ()> {
 }
 
 /// Create the session on first use, loading `client_secret.json`.
-fn ensure_session(slot: &mut Option<Session>) -> Result<&mut Session, AccountStatus> {
+pub fn ensure_session(slot: &mut Option<Session>) -> Result<&mut Session, AccountStatus> {
     if slot.is_none() {
         let no_config = |message: String| AccountStatus::NoConfig {
             path: config::client_secret_path()

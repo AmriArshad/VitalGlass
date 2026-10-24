@@ -1,7 +1,10 @@
-//! Tauri backend: registers app state and the commands the frontend calls
-//! with `invoke()`.
+//! Tauri backend: registers app state, the commands the frontend calls
+//! with `invoke()`, and the background sync timer.
 
 mod account;
+mod dashboard;
+mod state;
+mod sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -14,13 +17,16 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            sync::spawn_timer(app.handle().clone());
             Ok(())
         })
-        .manage(account::AppState::default())
+        .manage(state::AppState::new())
         .invoke_handler(tauri::generate_handler![
             account::account_status,
             account::sign_in,
             account::sign_out,
+            dashboard::dashboard,
+            sync::sync_now,
         ])
         .run(tauri::generate_context!())
         .expect("error while running VitalGlass");
