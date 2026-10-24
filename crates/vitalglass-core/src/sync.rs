@@ -103,14 +103,27 @@ pub struct JobResult {
     pub message: Option<String>,
 }
 
-/// Run a sync. `progress` receives a short line per step, for a CLI or a
-/// UI status bar.
+/// Progress callback: receives a short line per step, for a CLI or a UI
+/// status bar. `Send` so a sync can run on a background task.
+pub type Progress<'a> = &'a mut (dyn FnMut(&str) + Send);
+
+/// Run a sync: the hot pass, then (for [`Mode::Full`]) the backfill.
 pub async fn run(
     session: &mut Session,
     store: &Store,
     mode: Mode,
-    progress: &mut dyn FnMut(&str),
+    progress: Progress<'_>,
 ) -> Result<Vec<JobResult>, Error> {
+    let mut results = hot(session, store, progress).await?;
+    if mode == Mode::Full {
+        results.extend(backfill(session, store, progress).await?);
+    }
+    Ok(results)
+}
+
+/// Devices, today's intraday heart rate and the last [`HOT_DAYS`] days of
+/// every type. Fast enough to run on every launch and every 15 minutes.
+pub async fn hot(session: &mut Session, store: &Store, progress: Progress<'_>) -> Result<Vec<JobResult>, Error> {
     let today = Local::now().date_naive();
     let hot_start = today - Days::new(HOT_DAYS - 1);
     let tomorrow = today + Days::new(1);
@@ -129,19 +142,26 @@ pub async fn run(
         let r = run_job(session, store, *job, hot_start, tomorrow, progress).await?;
         results.push(r);
     }
+    Ok(results)
+}
 
-    if mode == Mode::Full {
-        let history_start = today - Days::new(HISTORY_DAYS - 1);
-        for job in JOBS {
-            // Resume from the oldest date already fetched.
-            let done_from = store.backfilled_from(job.data_type)?.unwrap_or(hot_start);
-            if done_from <= history_start {
-                continue;
-            }
-            let r = run_job(session, store, *job, history_start, done_from, progress).await?;
-            if r.status != "ok" {
-                results.push(r);
-            }
+/// History older than the hot window, back to [`HISTORY_DAYS`]. Resumes
+/// from `sync_state`, so once complete it makes no requests. Only failed
+/// types are returned.
+pub async fn backfill(session: &mut Session, store: &Store, progress: Progress<'_>) -> Result<Vec<JobResult>, Error> {
+    let today = Local::now().date_naive();
+    let hot_start = today - Days::new(HOT_DAYS - 1);
+    let history_start = today - Days::new(HISTORY_DAYS - 1);
+    let mut results = Vec::new();
+    for job in JOBS {
+        // Resume from the oldest date already fetched.
+        let done_from = store.backfilled_from(job.data_type)?.unwrap_or(hot_start);
+        if done_from <= history_start {
+            continue;
+        }
+        let r = run_job(session, store, *job, history_start, done_from, progress).await?;
+        if r.status != "ok" {
+            results.push(r);
         }
     }
     Ok(results)
@@ -155,7 +175,7 @@ async fn run_job(
     job: Job,
     from: NaiveDate,
     to: NaiveDate,
-    progress: &mut dyn FnMut(&str),
+    progress: Progress<'_>,
 ) -> Result<JobResult, Error> {
     let granted = session
         .tokens()

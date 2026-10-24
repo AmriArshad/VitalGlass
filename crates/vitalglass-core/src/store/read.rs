@@ -271,7 +271,8 @@ impl Store {
         params: impl rusqlite::Params,
         map: impl FnMut(&Row) -> rusqlite::Result<T>,
     ) -> Result<Vec<T>, Error> {
-        let mut stmt = self.conn.prepare_cached(sql)?;
+        let conn = self.conn();
+        let mut stmt = conn.prepare_cached(sql)?;
         let rows = stmt.query_map(params, map)?;
         Ok(rows.collect::<Result<_, _>>()?)
     }

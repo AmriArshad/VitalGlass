@@ -18,7 +18,8 @@ use crate::units::{civil_date, duration_secs, mm_to_m};
 impl Store {
     /// Store `dailyRollUp` results for one data type into `daily_activity`.
     pub fn save_daily_rollups(&self, data_type: &str, points: &[DailyRollup]) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         let mut n = 0;
         for p in points {
             let Some(date) = p.civil_start_time.date.naive() else {
@@ -59,7 +60,8 @@ impl Store {
 
     /// Store points from the `daily-*` list types into `daily_vitals`.
     pub fn save_daily_vitals(&self, points: &[DataPoint]) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         let mut n = 0;
         for p in points {
             let (date, cols) = if let Some(v) = &p.daily_resting_heart_rate {
@@ -96,7 +98,8 @@ impl Store {
     /// Replace sleep sessions that ended on `[from, to)` with `points`.
     /// Each item pairs the parsed point with its raw JSON.
     pub fn replace_sleep(&self, from: NaiveDate, to: NaiveDate, points: &[(DataPoint, Value)]) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         tx.execute(
             "DELETE FROM sleep_sessions WHERE civil_end_date >= ?1 AND civil_end_date < ?2",
             params![from.to_string(), to.to_string()],
@@ -158,7 +161,8 @@ impl Store {
         to: NaiveDate,
         points: &[(DataPoint, Value)],
     ) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         tx.execute(
             "DELETE FROM exercises WHERE civil_start_date >= ?1 AND civil_start_date < ?2",
             params![from.to_string(), to.to_string()],
@@ -207,7 +211,8 @@ impl Store {
 
     /// Replace weight samples taken on local dates `[from, to)`.
     pub fn replace_weight(&self, from: NaiveDate, to: NaiveDate, points: &[DataPoint]) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         tx.execute(
             "DELETE FROM weight WHERE civil_date >= ?1 AND civil_date < ?2",
             params![from.to_string(), to.to_string()],
@@ -238,7 +243,8 @@ impl Store {
         end: DateTime<Utc>,
         buckets: &[Rollup],
     ) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         tx.execute(
             "DELETE FROM heart_rate_5min WHERE start_utc >= ?1 AND start_utc < ?2",
             params![utc(start), utc(end)],
@@ -267,7 +273,8 @@ impl Store {
 
     /// Replace the paired device list.
     pub fn replace_paired_devices(&self, devices: &[PairedDevice]) -> Result<usize, Error> {
-        let tx = self.conn.unchecked_transaction()?;
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
         tx.execute("DELETE FROM paired_devices", [])?;
         for d in devices {
             tx.execute(

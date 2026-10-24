@@ -11,6 +11,7 @@ mod read;
 mod write;
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, MutexGuard};
 
 use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -24,7 +25,9 @@ use crate::Error;
 const MIGRATIONS: &[&str] = &[include_str!("001_initial.sql"), include_str!("002_session_sources.sql")];
 
 pub struct Store {
-    conn: Connection,
+    // A Mutex makes Store shareable between the sync task and UI commands.
+    // Each method holds the lock only for its own short query.
+    conn: Mutex<Connection>,
 }
 
 /// `~/.local/share/vitalglass/vitalglass.db`, honouring `$XDG_DATA_HOME`.
@@ -50,20 +53,26 @@ impl Store {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "foreign_keys", true)?;
         migrate(&mut conn)?;
-        Ok(Self { conn })
+        Ok(Self { conn: Mutex::new(conn) })
     }
 
     /// In-memory database for tests.
     pub fn open_in_memory() -> Result<Self, Error> {
         let mut conn = Connection::open_in_memory()?;
         migrate(&mut conn)?;
-        Ok(Self { conn })
+        Ok(Self { conn: Mutex::new(conn) })
+    }
+
+    /// Lock the connection. A panic while holding the lock can't leave
+    /// SQLite inconsistent (transactions roll back), so ignore poisoning.
+    fn conn(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Oldest date fetched for `data_type`, if any backfill has run.
     pub fn backfilled_from(&self, data_type: &str) -> Result<Option<NaiveDate>, Error> {
         let s: Option<Option<String>> = self
-            .conn
+            .conn()
             .query_row(
                 "SELECT backfilled_from FROM sync_state WHERE data_type = ?1",
                 [data_type],
@@ -84,7 +93,7 @@ impl Store {
     ) -> Result<(), Error> {
         let now = utc(Utc::now());
         let success = (status == "ok").then(|| now.clone());
-        self.conn.execute(
+        self.conn().execute(
             "INSERT INTO sync_state (data_type, status, message, last_success_utc, backfilled_from, updated_utc)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)
              ON CONFLICT (data_type) DO UPDATE SET
@@ -178,7 +187,7 @@ mod tests {
         let store = Store::open_in_memory().unwrap();
         let insert = |id: &str, app: Option<&str>| {
             store
-                .conn
+                .conn()
                 .execute(
                     "INSERT INTO exercises (id, start_utc, end_utc, civil_start_date, raw_json, source_app)
                      VALUES (?1, '2026-10-23T05:01:00Z', '2026-10-23T06:30:00Z', '2026-10-23', '{}', ?2)",
