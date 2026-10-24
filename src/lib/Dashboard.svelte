@@ -106,6 +106,13 @@
   const sinceLabel = (date: string | undefined) => (date && date !== data?.today ? `on ${fmtCivil(date)}` : 'today')
 
   const hours = (min: number | null | undefined) => (min == null ? null : min / 60)
+
+  /** Mean of the non-null values, or null if there are none. */
+  function avg(values: (number | null | undefined)[]): number | null {
+    const v = values.filter((x): x is number => x != null)
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null
+  }
+  const fmtAvg = (values: (number | null | undefined)[], digits: number) => avg(values)?.toFixed(digits) ?? '–'
   const hrLabels = $derived(data?.heart_rate_today.map((b) => fmtTime(b.start_utc)) ?? [])
 </script>
 
@@ -113,13 +120,13 @@
   <p class="error">Couldn't read the local cache: {error}</p>
 {:else if data}
   <div class="tiles">
-    <Card title="Steps today" state={perm(['steps'])} {onreauth}>
+    <Card title="Steps today" icon="shoe" state={perm(['steps'])} {onreauth}>
       <Stat
         value={fmtInt(today?.steps)}
         sub="{fmtKm(today?.distance_m)} km{today?.floors != null ? ` · ${today.floors} floors` : ''}"
       />
     </Card>
-    <Card title="Active zone minutes" state={perm(['active-zone-minutes'])} {onreauth}>
+    <Card title="Active zone minutes" icon="heartbeat" state={perm(['active-zone-minutes'])} {onreauth}>
       <Stat
         value={fmtInt(azmToday)}
         unit="min"
@@ -128,18 +135,18 @@
           : undefined}
       />
     </Card>
-    <Card title="Calories" state={perm(['total-calories'])} {onreauth}>
+    <Card title="Calories" icon="flame" state={perm(['total-calories'])} {onreauth}>
       <Stat value={fmtInt(today?.calories_kcal)} unit="kcal" sub="so far today" />
     </Card>
     <Card
-      title="Resting heart rate"
+      title="Resting heart rate" icon="heart"
       state={perm(['daily-resting-heart-rate']) === 'ok' && !restingHr ? 'empty' : perm(['daily-resting-heart-rate'])}
       {onreauth}
     >
       <Stat value={fmtInt(restingHr?.value)} unit="bpm" sub={sinceLabel(restingHr?.date)} />
     </Card>
     <Card
-      title="Last sleep"
+      title="Last sleep" icon="moon"
       state={perm(['sleep']) === 'ok' && !lastSleep ? 'empty' : perm(['sleep'])}
       emptyText="No sleep recorded"
       {onreauth}
@@ -164,22 +171,22 @@
   </div>
 
   <div class="tiles small">
-    <Card title="HRV" state={perm(['daily-heart-rate-variability']) === 'ok' && !hrv ? 'empty' : perm(['daily-heart-rate-variability'])} {onreauth}>
+    <Card title="HRV" icon="activity" state={perm(['daily-heart-rate-variability']) === 'ok' && !hrv ? 'empty' : perm(['daily-heart-rate-variability'])} {onreauth}>
       <Stat value={hrv ? hrv.value.toFixed(0) : '–'} unit="ms" sub={sinceLabel(hrv?.date)} />
     </Card>
-    <Card title="SpO₂" state={perm(['daily-oxygen-saturation']) === 'ok' && !spo2 ? 'empty' : perm(['daily-oxygen-saturation'])} {onreauth}>
+    <Card title="SpO₂" icon="droplet" state={perm(['daily-oxygen-saturation']) === 'ok' && !spo2 ? 'empty' : perm(['daily-oxygen-saturation'])} {onreauth}>
       <Stat value={spo2 ? spo2.value.toFixed(1) : '–'} unit="%" sub={sinceLabel(spo2?.date)} />
     </Card>
-    <Card title="Breathing rate" state={perm(['daily-respiratory-rate']) === 'ok' && !breathing ? 'empty' : perm(['daily-respiratory-rate'])} {onreauth}>
+    <Card title="Breathing rate" icon="lungs" state={perm(['daily-respiratory-rate']) === 'ok' && !breathing ? 'empty' : perm(['daily-respiratory-rate'])} {onreauth}>
       <Stat value={breathing ? breathing.value.toFixed(1) : '–'} unit="br/min" sub={sinceLabel(breathing?.date)} />
     </Card>
     {#if vo2}
-      <Card title="VO₂ max">
+      <Card title="VO₂ max" icon="run">
         <Stat value={vo2.value.toFixed(0)} unit="ml/kg/min" sub={sinceLabel(vo2.date)} />
       </Card>
     {/if}
     {#if weight}
-      <Card title="Weight">
+      <Card title="Weight" icon="scale">
         <Stat value={(weight.grams / 1000).toFixed(1)} unit="kg" sub={sinceLabel(weight.civil_date)} />
       </Card>
     {/if}
@@ -195,7 +202,8 @@
   </div>
 
   <div class="charts">
-    <Card title="Resting heart rate" state={perm(['daily-resting-heart-rate'])} {onreauth}>
+    <Card title="Resting heart rate" icon="heart" state={perm(['daily-resting-heart-rate'])} {onreauth}>
+      {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.resting_hr), 0)} bpm{/snippet}
       <Chart
         type="line"
         {labels}
@@ -204,7 +212,8 @@
         ariaLabel="Resting heart rate per day"
       />
     </Card>
-    <Card title="Heart rate variability" state={perm(['daily-heart-rate-variability'])} {onreauth}>
+    <Card title="Heart rate variability" icon="activity" state={perm(['daily-heart-rate-variability'])} {onreauth}>
+      {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.hrv_ms), 0)} ms{/snippet}
       <Chart
         type="line"
         {labels}
@@ -213,7 +222,8 @@
         ariaLabel="Heart rate variability per night"
       />
     </Card>
-    <Card title="Sleep" state={perm(['sleep'])} {onreauth}>
+    <Card title="Sleep" icon="moon" state={perm(['sleep'])} {onreauth}>
+      {#snippet extra()}avg {fmtMinutes(avg(days.map((d) => nights.get(d)?.minutes_asleep)))} asleep{/snippet}
       <Chart
         type="bar"
         stacked
@@ -228,7 +238,8 @@
         ariaLabel="Sleep stages per night"
       />
     </Card>
-    <Card title="Steps" state={perm(['steps'])} {onreauth}>
+    <Card title="Steps" icon="shoe" state={perm(['steps'])} {onreauth}>
+      {#snippet extra()}avg {fmtInt(avg(days.map((d) => activity.get(d)?.steps)))} a day{/snippet}
       <Chart
         type="bar"
         {labels}
@@ -241,7 +252,7 @@
 
   <div class="charts wide">
     <Card
-      title="Heart rate today"
+      title="Heart rate today" icon="heartbeat"
       state={perm(['heart-rate']) === 'ok' && data.heart_rate_today.length === 0 ? 'empty' : perm(['heart-rate'])}
       {onreauth}
     >
@@ -255,7 +266,7 @@
       />
     </Card>
     <Card
-      title="Recent workouts"
+      title="Recent workouts" icon="run"
       state={perm(['exercise']) === 'ok' && data.workouts.length === 0 ? 'empty' : perm(['exercise'])}
       emptyText="No workouts recorded"
       {onreauth}

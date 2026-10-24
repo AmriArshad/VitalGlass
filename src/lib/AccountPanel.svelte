@@ -31,43 +31,43 @@
       <p class="warn">
         Permission not granted for: {status.missing_scopes.join(', ')}. Related cards will be empty.
       </p>
-      <button onclick={() => run(signIn)} disabled={busy}>Re-authorise</button>
+      <button class="primary" onclick={() => run(signIn)} disabled={busy}>Re-authorise</button>
     {/if}
-    <button class="secondary" onclick={() => run(signOut)} disabled={busy}>Sign out</button>
+    <button onclick={() => run(signOut)} disabled={busy}>Sign out</button>
   {:else if status.state === 'signed_out'}
     <h2><span class="dot"></span>Not signed in</h2>
     <p class="muted">Sign in with the Google account you use in the Google Health app.</p>
-    <button onclick={() => run(signIn)} disabled={busy}>{busy ? 'Waiting for browser…' : 'Sign in with Google'}</button>
+    <button class="primary" onclick={() => run(signIn)} disabled={busy}>{busy ? 'Waiting for browser…' : 'Sign in with Google'}</button>
   {:else if status.state === 'session_expired'}
     <h2><span class="dot warn"></span>Session expired</h2>
     <p class="muted">Google no longer accepts the saved sign-in. While the app is in Testing mode this happens every 7 days.</p>
-    <button onclick={() => run(signIn)} disabled={busy}>{busy ? 'Waiting for browser…' : 'Sign in again'}</button>
+    <button class="primary" onclick={() => run(signIn)} disabled={busy}>{busy ? 'Waiting for browser…' : 'Sign in again'}</button>
   {:else if status.state === 'not_linked'}
     <h2><span class="dot warn"></span>Account not linked</h2>
     <p class="muted">
       Signed in, but this Google account isn't linked to Google Health yet. Open the Google Health app on your phone,
       sign in with the same account, then retry.
     </p>
-    <button onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
-    <button class="secondary" onclick={() => run(signOut)} disabled={busy}>Use another account</button>
+    <button class="primary" onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
+    <button onclick={() => run(signOut)} disabled={busy}>Use another account</button>
   {:else if status.state === 'offline'}
     <h2><span class="dot warn"></span>Offline</h2>
     <p class="muted">Can't reach Google. Check your connection.</p>
-    <button onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
+    <button class="primary" onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
   {:else if status.state === 'no_config'}
     <h2><span class="dot bad"></span>OAuth client not configured</h2>
     <p class="muted">Put the client JSON from Google Cloud Console at <code>{status.path}</code>.</p>
     <p class="detail">{status.message}</p>
-    <button onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
+    <button class="primary" onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
   {:else if status.state === 'keyring_unavailable'}
     <h2><span class="dot bad"></span>Keyring unavailable</h2>
     <p class="muted">VitalGlass stores your sign-in in KWallet (Secret Service). Make sure it's enabled and unlocked.</p>
     <p class="detail">{status.message}</p>
-    <button onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
+    <button class="primary" onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
   {:else}
     <h2><span class="dot bad"></span>Something went wrong</h2>
     <p class="detail">{status.message}</p>
-    <button onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
+    <button class="primary" onclick={() => run(accountStatus)} disabled={busy}>Retry</button>
   {/if}
 </section>
 

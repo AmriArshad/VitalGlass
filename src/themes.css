@@ -1,0 +1,61 @@
+/*
+  Themes. Each theme is one block of colour tokens on :root[data-theme=…];
+  everything else (app.css, components, charts) reads only these tokens.
+
+  To add a theme:
+    1. Copy a block below and change the values.
+    2. Validate the four --series colours against the theme's --surface with
+       the dataviz palette validator (CVD separation and 3:1 contrast).
+    3. Add it to THEMES in src/lib/theme.svelte.ts.
+
+  Breeze values come from Plasma 6's Breeze Dark / Breeze Light colour
+  schemes (kdeglobals). --accent is replaced at runtime with your KDE accent
+  colour for themes that opt in (see theme.svelte.ts).
+*/
+
+:root,
+:root[data-theme='breeze-dark'] {
+  color-scheme: dark;
+  --bg: #141618; /* View background: the page behind the cards */
+  --surface: #202326; /* Window background: cards */
+  --surface-raised: #292c30; /* Button background: hover, popovers, tooltips */
+  --border: #34383d;
+  --grid: #2c3034;
+  --text: #fcfcfc;
+  --muted: #a1a9b1;
+  --accent: #3daee9;
+  --on-accent: #fcfcfc;
+  --ok: #27ae60;
+  --warn: #f67400;
+  --bad: #da4453;
+  --shadow: 0 1px 2px rgb(0 0 0 / 35%);
+
+  /* Chart series in fixed order: deep, light, REM, awake for sleep; slot 1
+     for single-series charts. Validated against --surface. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+}
+
+:root[data-theme='breeze-light'] {
+  color-scheme: light;
+  --bg: #eff0f1;
+  --surface: #ffffff;
+  --surface-raised: #f7f8f8;
+  --border: #d4d8dc;
+  --grid: #e6e8ea;
+  --text: #232629;
+  --muted: #6b7783;
+  --accent: #3daee9;
+  --on-accent: #ffffff;
+  --ok: #27ae60;
+  --warn: #c75e00;
+  --bad: #da4453;
+  --shadow: 0 1px 2px rgb(35 38 41 / 10%);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #199e70;
+  --series-4: #c98500;
+}

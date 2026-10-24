@@ -9,6 +9,10 @@
   import { onDestroy, onMount } from 'svelte'
   import AccountPanel from './lib/AccountPanel.svelte'
   import Dashboard from './lib/Dashboard.svelte'
+  import Icon from './lib/Icon.svelte'
+  import Logo from './lib/Logo.svelte'
+  import ThemeMenu from './lib/ThemeMenu.svelte'
+  import { initTheme, theme } from './lib/theme.svelte'
   import { accountStatus, signIn, signOut, type AccountStatus } from './lib/account'
   import {
     onSyncFinished,
@@ -64,7 +68,7 @@
     wasSignedIn = signedIn
   })
 
-  const unlisteners: (() => void)[] = []
+  const unlisteners: (() => void)[] = [initTheme()]
   let timer: ReturnType<typeof setInterval>
   onMount(async () => {
     unlisteners.push(await onSyncProgress((line) => (progress = line)))
@@ -89,10 +93,16 @@
 
 {#if showDashboard}
   <header class="top">
-    <h1>VitalGlass</h1>
-    <div class="sync">
-      {#if syncing}<span class="muted progress">{progress}</span>{/if}
-      <button onclick={startSync} disabled={syncing}>{syncing ? 'Syncing…' : 'Sync'}</button>
+    <h1><Logo size={26} /> VitalGlass</h1>
+    <div class="actions">
+      <span class="muted status" aria-live="polite">
+        {syncing ? progress : `Updated ${fmtAgo(lastApiSync, now)}`}
+      </span>
+      <button class="primary" onclick={startSync} disabled={syncing}>
+        <Icon name="refresh" spin={syncing} />
+        {syncing ? 'Syncing' : 'Sync'}
+      </button>
+      <ThemeMenu />
     </div>
   </header>
 
@@ -114,11 +124,15 @@
       </p>
     {/if}
 
-    <Dashboard bind:data onreauth={reauthorise} />
+    <!-- Re-mount on theme change so charts pick up the new colours. -->
+    {#key theme.resolved.id}
+      <Dashboard bind:data onreauth={reauthorise} />
+    {/key}
   </main>
 
   <footer>
-    <span>
+    <span class="item">
+      <Icon name="device-watch" />
       {#if device}
         {device.product ?? 'Device'} synced {fmtAgo(device.last_sync_utc, now)}{device.battery_level != null
           ? ` · battery ${device.battery_level}%`
@@ -127,15 +141,15 @@
         No paired device
       {/if}
     </span>
-    <span>Data updated {fmtAgo(lastApiSync, now)}</span>
-    <span>
+    <span class="item">
+      <Icon name={status?.state === 'offline' ? 'cloud-off' : 'cloud'} />
       {status?.state === 'offline' ? 'Offline' : 'Connected to Google Health'}
       · <button class="link" onclick={doSignOut}>Sign out</button>
     </span>
   </footer>
 {:else}
   <main class="centered">
-    <h1>VitalGlass</h1>
+    <h1><Logo size={30} /> VitalGlass</h1>
     {#if status === null}
       <p class="muted">Checking account…</p>
     {:else}
@@ -152,16 +166,19 @@
     padding: 0.9rem 1.5rem 0;
   }
   h1 {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
     font-size: 1.3rem;
     font-weight: 600;
     margin: 0;
   }
-  .sync {
+  .actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.6rem;
   }
-  .progress {
+  .status {
     font-size: 0.85rem;
     max-width: 28rem;
     overflow: hidden;
@@ -202,11 +219,9 @@
     font-size: 0.85rem;
     border-top: 1px solid var(--border);
   }
-  .link {
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--accent);
-    text-decoration: underline;
+  footer .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
   }
 </style>
