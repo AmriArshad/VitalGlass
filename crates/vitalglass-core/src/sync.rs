@@ -29,8 +29,6 @@ use crate::store::Store;
 pub const HOT_DAYS: u64 = 14;
 /// How far back the backfill goes (the longest chart range).
 pub const HISTORY_DAYS: u64 = 90;
-/// Intraday heart rate bucket size.
-const HEART_RATE_WINDOW: Duration = Duration::from_secs(300);
 
 /// How a data type is fetched and stored.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -42,12 +40,20 @@ enum Kind {
     Sleep,
     Exercise,
     Weight,
+    /// `rollUp` into fixed-size physical-time buckets, for today and
+    /// yesterday only (no backfill).
+    Intraday {
+        window: Duration,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Job {
     /// Hyphenated API name.
     data_type: &'static str,
+    /// Name in `sync_state`. Usually the data type, but intraday jobs reuse
+    /// a type that also has a daily job (e.g. `steps`), so they need their own.
+    key: &'static str,
     /// Short scope name, as in [`crate::auth::Tokens::missing_scopes`].
     scope: &'static str,
     kind: Kind,
@@ -62,6 +68,7 @@ const SLEEP: &str = "sleep.readonly";
 const fn job(data_type: &'static str, scope: &'static str, kind: Kind, max_days: u64) -> Job {
     Job {
         data_type,
+        key: data_type,
         scope,
         kind,
         max_days,
@@ -85,7 +92,28 @@ const JOBS: &[Job] = &[
     job("exercise", ACTIVITY, Kind::Exercise, 90),
 ];
 
-const HEART_RATE: Job = job("heart-rate", METRICS, Kind::DailyRollUp, 14);
+/// Today's 5-minute heart rate and hourly steps, refreshed in the hot pass.
+const INTRADAY: &[Job] = &[
+    job(
+        "heart-rate",
+        METRICS,
+        Kind::Intraday {
+            window: Duration::from_secs(300),
+        },
+        14,
+    ),
+    Job {
+        key: "steps-hourly",
+        ..job(
+            "steps",
+            ACTIVITY,
+            Kind::Intraday {
+                window: Duration::from_secs(3600),
+            },
+            14,
+        )
+    },
+];
 
 /// Which passes to run.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,7 +149,7 @@ pub async fn run(
     Ok(results)
 }
 
-/// Devices, today's intraday heart rate and the last [`HOT_DAYS`] days of
+/// Devices, today's intraday heart rate and steps, and the last [`HOT_DAYS`] days of
 /// every type. Fast enough to run on every launch and every 15 minutes.
 pub async fn hot(session: &mut Session, store: &Store, progress: Progress<'_>) -> Result<Vec<JobResult>, Error> {
     let today = Local::now().date_naive();
@@ -135,8 +163,10 @@ pub async fn hot(session: &mut Session, store: &Store, progress: Progress<'_>) -
     store.replace_paired_devices(&devices)?;
     progress(&format!("paired devices: {}", devices.len()));
 
-    let r = run_job(session, store, HEART_RATE, today - Days::new(1), tomorrow, progress).await?;
-    results.push(r);
+    for job in INTRADAY {
+        let r = run_job(session, store, *job, today - Days::new(1), tomorrow, progress).await?;
+        results.push(r);
+    }
 
     for job in JOBS {
         let r = run_job(session, store, *job, hot_start, tomorrow, progress).await?;
@@ -155,7 +185,7 @@ pub async fn backfill(session: &mut Session, store: &Store, progress: Progress<'
     let mut results = Vec::new();
     for job in JOBS {
         // Resume from the oldest date already fetched.
-        let done_from = store.backfilled_from(job.data_type)?.unwrap_or(hot_start);
+        let done_from = store.backfilled_from(job.key)?.unwrap_or(hot_start);
         if done_from <= history_start {
             continue;
         }
@@ -182,8 +212,8 @@ async fn run_job(
         .is_some_and(|t| t.missing_scopes().iter().all(|s| *s != job.scope));
     if !granted {
         let msg = format!("scope {} not granted", job.scope);
-        store.set_sync_state(job.data_type, "permission_denied", Some(&msg), None)?;
-        progress(&format!("{}: skipped ({msg})", job.data_type));
+        store.set_sync_state(job.key, "permission_denied", Some(&msg), None)?;
+        progress(&format!("{}: skipped ({msg})", job.key));
         return Ok(result(job, "permission_denied", 0, Some(msg)));
     }
 
@@ -195,7 +225,7 @@ async fn run_job(
         match fetch_chunk(&api, store, job, chunk_start, chunk_end).await {
             Ok(n) => {
                 items += n;
-                store.set_sync_state(job.data_type, "ok", None, Some(chunk_start))?;
+                store.set_sync_state(job.key, "ok", None, Some(chunk_start))?;
             }
             Err(e) if is_fatal(&e) => return Err(e),
             Err(e) => {
@@ -204,14 +234,14 @@ async fn run_job(
                     _ => "error",
                 };
                 let msg = e.to_string();
-                store.set_sync_state(job.data_type, status, Some(&msg), None)?;
-                progress(&format!("{}: {status}: {msg}", job.data_type));
+                store.set_sync_state(job.key, status, Some(&msg), None)?;
+                progress(&format!("{}: {status}: {msg}", job.key));
                 return Ok(result(job, status, items, Some(msg)));
             }
         }
         chunk_end = chunk_start;
     }
-    progress(&format!("{}: {items} items ({from} to {to})", job.data_type));
+    progress(&format!("{}: {items} items ({from} to {to})", job.key));
     Ok(result(job, "ok", items, None))
 }
 
@@ -230,15 +260,18 @@ async fn fetch_chunk(
     from: NaiveDate,
     to: NaiveDate,
 ) -> Result<usize, Error> {
-    if job.data_type == HEART_RATE.data_type {
-        let start = local_midnight_utc(from);
-        let end = local_midnight_utc(to).min(Utc::now());
-        let raw = api.roll_up(job.data_type, start, end, HEART_RATE_WINDOW).await?;
-        let buckets: Vec<Rollup> = parse_all(raw);
-        return store.replace_heart_rate(start, local_midnight_utc(to), &buckets);
-    }
-
     match job.kind {
+        Kind::Intraday { window } => {
+            let start = local_midnight_utc(from);
+            let end = local_midnight_utc(to);
+            let raw = api.roll_up(job.data_type, start, end.min(Utc::now()), window).await?;
+            let buckets: Vec<Rollup> = parse_all(raw);
+            match job.data_type {
+                "heart-rate" => store.replace_heart_rate(start, end, &buckets),
+                "steps" => store.replace_steps_hourly(start, end, &buckets),
+                other => Err(Error::Config(format!("no intraday table for {other}"))),
+            }
+        }
         Kind::DailyRollUp => {
             let points: Vec<DailyRollup> = parse_all(api.daily_roll_up(job.data_type, from, to).await?);
             store.save_daily_rollups(job.data_type, &points)
@@ -313,7 +346,7 @@ fn local_midnight_utc(date: NaiveDate) -> chrono::DateTime<Utc> {
 
 fn result(job: Job, status: &'static str, items: usize, message: Option<String>) -> JobResult {
     JobResult {
-        data_type: job.data_type,
+        data_type: job.key,
         status,
         items,
         message,

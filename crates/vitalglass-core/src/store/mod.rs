@@ -22,7 +22,11 @@ use crate::Error;
 
 /// Schema migrations, applied in order. SQLite's `user_version` pragma
 /// records how many have run. Never edit a released migration; add a new one.
-const MIGRATIONS: &[&str] = &[include_str!("001_initial.sql"), include_str!("002_session_sources.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("001_initial.sql"),
+    include_str!("002_session_sources.sql"),
+    include_str!("003_steps_hourly.sql"),
+];
 
 pub struct Store {
     // A Mutex makes Store shareable between the sync task and UI commands.

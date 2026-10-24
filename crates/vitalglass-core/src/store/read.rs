@@ -79,6 +79,21 @@ pub struct HeartRateBucket {
 }
 
 #[derive(Debug, Serialize)]
+pub struct StepsBucket {
+    pub start_utc: String,
+    pub steps: i64,
+}
+
+/// One segment of a sleep session's stage timeline.
+#[derive(Debug, Serialize)]
+pub struct SleepStageSegment {
+    pub start_utc: String,
+    pub end_utc: String,
+    /// `AWAKE`, `LIGHT`, `DEEP`, `REM` (stages) or `ASLEEP`, `RESTLESS` (classic).
+    pub stage: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct WeightSample {
     pub sampled_utc: String,
     pub civil_date: String,
@@ -212,6 +227,51 @@ impl Store {
                 })
             },
         )
+    }
+
+    /// Hourly step buckets with `start_utc` in `[start, end)` (RFC 3339 UTC).
+    pub fn steps_hourly(&self, start: &str, end: &str) -> Result<Vec<StepsBucket>, Error> {
+        self.query(
+            "SELECT start_utc, steps FROM steps_hourly WHERE start_utc >= ?1 AND start_utc < ?2 ORDER BY start_utc",
+            params![start, end],
+            |r| {
+                Ok(StepsBucket {
+                    start_utc: r.get(0)?,
+                    steps: r.get(1)?,
+                })
+            },
+        )
+    }
+
+    /// Stage segments of one sleep session, oldest first. They aren't in
+    /// their own table: they come from the session's saved `raw_json`.
+    pub fn sleep_stages(&self, sleep_id: &str) -> Result<Vec<SleepStageSegment>, Error> {
+        let raw: Vec<String> = self.query("SELECT raw_json FROM sleep_sessions WHERE id = ?1", [sleep_id], |r| {
+            r.get(0)
+        })?;
+        let Some(raw) = raw.first() else {
+            return Ok(Vec::new());
+        };
+        let json: serde_json::Value =
+            serde_json::from_str(raw).map_err(|e| Error::Config(format!("bad raw_json for {sleep_id}: {e}")))?;
+        let stages = json
+            .pointer("/sleep/stages")
+            .and_then(|v| v.as_array())
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let mut out: Vec<SleepStageSegment> = stages
+            .iter()
+            .filter_map(|st| {
+                let field = |k: &str| st.get(k).and_then(|v| v.as_str()).map(str::to_owned);
+                Some(SleepStageSegment {
+                    start_utc: field("startTime")?,
+                    end_utc: field("endTime")?,
+                    stage: field("type")?,
+                })
+            })
+            .collect();
+        out.sort_by(|a, b| a.start_utc.cmp(&b.start_utc));
+        Ok(out)
     }
 
     /// Weight samples on local dates `[from, to)`, oldest first.

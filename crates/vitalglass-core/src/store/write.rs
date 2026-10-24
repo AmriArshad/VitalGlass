@@ -271,6 +271,34 @@ impl Store {
         Ok(n)
     }
 
+    /// Replace hourly step buckets starting in `[start, end)`.
+    pub fn replace_steps_hourly(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        buckets: &[Rollup],
+    ) -> Result<usize, Error> {
+        let conn = self.conn();
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
+            "DELETE FROM steps_hourly WHERE start_utc >= ?1 AND start_utc < ?2",
+            params![utc(start), utc(end)],
+        )?;
+        let mut n = 0;
+        for b in buckets {
+            let Some(steps) = b.steps.as_ref().and_then(|s| s.count_sum) else {
+                continue;
+            };
+            tx.execute(
+                "INSERT OR REPLACE INTO steps_hourly (start_utc, steps) VALUES (?1, ?2)",
+                params![utc(b.start_time), steps],
+            )?;
+            n += 1;
+        }
+        tx.commit()?;
+        Ok(n)
+    }
+
     /// Replace the paired device list.
     pub fn replace_paired_devices(&self, devices: &[PairedDevice]) -> Result<usize, Error> {
         let conn = self.conn();

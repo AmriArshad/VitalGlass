@@ -82,6 +82,7 @@ pub struct KcalSum {
 pub struct Rollup {
     pub start_time: DateTime<Utc>,
     pub heart_rate: Option<HeartRateRollup>,
+    pub steps: Option<CountSum>,
 }
 
 #[derive(Debug, Deserialize)]

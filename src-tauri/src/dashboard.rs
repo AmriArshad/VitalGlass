@@ -6,10 +6,14 @@ use chrono::{Days, Local, NaiveDate, SecondsFormat, TimeZone, Utc};
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 use vitalglass_core::store::{
-    DailyActivity, DailyVitals, Device, ExerciseRow, HeartRateBucket, SleepSession, Store, SyncState, WeightSample,
+    DailyActivity, DailyVitals, Device, ExerciseRow, HeartRateBucket, SleepSession, SleepStageSegment, StepsBucket,
+    Store, SyncState, WeightSample,
 };
 
 use crate::state::AppState;
+
+/// Days averaged for the "vs your average" comparison.
+const BASELINE_DAYS: u64 = 30;
 
 /// How many workouts the list shows.
 const WORKOUT_LIMIT: u32 = 10;
@@ -29,6 +33,14 @@ pub struct Dashboard {
     pub last_sleep: Option<SleepSession>,
     /// 5-minute buckets since local midnight.
     pub heart_rate_today: Vec<HeartRateBucket>,
+    /// Hourly steps since local midnight.
+    pub steps_today: Vec<StepsBucket>,
+    /// Stage timeline of `last_sleep`.
+    pub last_sleep_stages: Vec<SleepStageSegment>,
+    /// The last 30 days of vitals regardless of range, for "vs your average".
+    pub baseline_vitals: Vec<DailyVitals>,
+    /// Sleep sessions over the same 30 days, for the sleep duration average.
+    pub baseline_sleep: Vec<SleepSession>,
     pub workouts: Vec<ExerciseRow>,
     /// Weight in the range; empty if the user doesn't log weight.
     pub weight: Vec<WeightSample>,
@@ -56,6 +68,12 @@ fn read(store: &Store, range_days: u32, syncing: bool) -> Result<Dashboard, vita
     let today = Local::now().date_naive();
     let tomorrow = today + Days::new(1);
     let start = today - Days::new(u64::from(range_days) - 1);
+    let last_sleep = store.latest_main_sleep()?;
+    let last_sleep_stages = match &last_sleep {
+        Some(s) => store.sleep_stages(&s.id)?,
+        None => Vec::new(),
+    };
+    let (midnight, next_midnight) = (local_midnight_utc(today), local_midnight_utc(tomorrow));
     Ok(Dashboard {
         today: today.to_string(),
         range_start: start.to_string(),
@@ -63,8 +81,12 @@ fn read(store: &Store, range_days: u32, syncing: bool) -> Result<Dashboard, vita
         activity: store.daily_activity(start, tomorrow)?,
         vitals: store.daily_vitals(start, tomorrow)?,
         sleep: store.sleep_sessions(start, tomorrow)?,
-        last_sleep: store.latest_main_sleep()?,
-        heart_rate_today: store.heart_rate(&local_midnight_utc(today), &local_midnight_utc(tomorrow))?,
+        last_sleep,
+        last_sleep_stages,
+        heart_rate_today: store.heart_rate(&midnight, &next_midnight)?,
+        steps_today: store.steps_hourly(&midnight, &next_midnight)?,
+        baseline_vitals: store.daily_vitals(today - Days::new(BASELINE_DAYS), today)?,
+        baseline_sleep: store.sleep_sessions(today - Days::new(BASELINE_DAYS), today)?,
         workouts: store.recent_exercises(WORKOUT_LIMIT)?,
         weight: store.weight(start, tomorrow)?,
         devices: store.devices()?,
