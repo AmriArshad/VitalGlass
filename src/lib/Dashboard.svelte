@@ -450,6 +450,9 @@
     font-size: 1rem;
     font-weight: 600;
     margin: 0;
+    text-transform: var(--heading-transform);
+    letter-spacing: var(--heading-tracking);
+    font-variant-caps: var(--heading-caps);
   }
   .section-head .muted {
     font-size: 0.85rem;
@@ -548,6 +551,7 @@
     font-size: 1.45rem;
     font-family: var(--font-numeric);
     font-weight: var(--value-weight);
+    text-shadow: var(--value-glow);
     line-height: 1.3;
     font-variant-numeric: tabular-nums;
   }
@@ -625,5 +629,6 @@
     color: var(--text);
     font-family: var(--font-numeric);
     font-weight: var(--value-weight);
+    text-shadow: var(--value-glow);
   }
 </style>

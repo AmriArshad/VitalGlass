@@ -21,6 +21,8 @@ export const THEMES: Theme[] = [
   { id: 'glass', name: 'Glass', dark: true, kdeAccent: false },
   { id: 'monitor', name: 'Monitor', dark: true, kdeAccent: false },
   { id: 'paper', name: 'Paper', dark: false, kdeAccent: false },
+  { id: 'cyberpunk', name: 'Cyberpunk', dark: true, kdeAccent: false },
+  { id: 'steampunk', name: 'Steampunk', dark: true, kdeAccent: false },
 ]
 
 /** What 'system' resolves to for each mode. */

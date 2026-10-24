@@ -17,6 +17,7 @@
     font-size: 1.9rem;
     font-family: var(--font-numeric);
     font-weight: var(--value-weight);
+    text-shadow: var(--value-glow);
     line-height: 1.1;
     margin: 0;
   }

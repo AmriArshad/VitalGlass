@@ -24,6 +24,12 @@
   --radius-card: 8px;
   --radius-control: 5px;
   --page-bg: var(--bg);
+  /* Section and card headings. */
+  --heading-transform: none;
+  --heading-tracking: normal;
+  --heading-caps: normal;
+  /* Optional text-shadow on the big numbers (neon glow). */
+  --value-glow: none;
 }
 
 /* --- Breeze Dark (default) ------------------------------------------------ */
@@ -160,4 +166,70 @@
   --series-2: #c0582a;
   --series-3: #199e70;
   --series-4: #b58200;
+}
+
+/* --- Cyberpunk: neon on near-black violet, in Monitor's spirit ------------ */
+:root[data-theme='cyberpunk'] {
+  color-scheme: dark;
+  --bg: #0a0612;
+  --page-bg: radial-gradient(ellipse 70% 50% at 100% 0%, #2a0b3d 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, #062a38 0%, transparent 70%), #0a0612;
+  --surface: #140d22;
+  --surface-raised: #1d1430;
+  --border: #3a1f5c;
+  --grid: #22183a;
+  --text: #f2e9ff;
+  --muted: #9b86c4;
+  --accent: #00e5ff;
+  --on-accent: #05020c;
+  --ok: #3dffa8;
+  --warn: #ffd23f;
+  --bad: #ff3d7f;
+  --shadow: 0 0 0 1px rgb(224 71 159 / 10%), 0 0 18px rgb(0 229 255 / 6%);
+  --font-ui: 'Hack', 'Noto Sans Mono', ui-monospace, monospace;
+  --value-weight: 700;
+  --value-glow: 0 0 10px rgb(0 229 255 / 45%);
+  --heading-transform: uppercase;
+  --heading-tracking: 0.08em;
+  --radius-card: 0;
+  --radius-control: 0;
+
+  /* Cyan, amber, hot pink, violet: cyan and pink look alike to deuteranopes
+     at similar brightness, so they're kept apart in the order. */
+  --series-1: #00a3c4;
+  --series-2: #c98500;
+  --series-3: #e0479f;
+  --series-4: #8a6cf0;
+}
+
+/* --- Steampunk: brass and parchment on dark leather ----------------------- */
+:root[data-theme='steampunk'] {
+  color-scheme: dark;
+  --bg: #120d08;
+  --page-bg: radial-gradient(ellipse 90% 70% at 50% 0%, #2a1d10 0%, transparent 75%), #120d08;
+  --surface: #22190f;
+  --surface-raised: #2e2214;
+  --border: #5a4124;
+  --grid: #33261a;
+  --text: #f1e2c4;
+  --muted: #b39a73;
+  --accent: #c9973a;
+  --on-accent: #1a1206;
+  --ok: #8fb069;
+  --warn: #e0a040;
+  --bad: #d0644a;
+  /* A highlight along the top edge and a deep drop shadow: riveted plate. */
+  --shadow: inset 0 1px 0 rgb(241 226 196 / 7%), 0 2px 8px rgb(0 0 0 / 45%);
+  --font-ui: 'Noto Serif', Georgia, serif;
+  --value-weight: 600;
+  --heading-caps: small-caps;
+  --heading-tracking: 0.04em;
+  --radius-card: 4px;
+  --radius-control: 3px;
+
+  /* Copper, verdigris, brass, steel blue. */
+  --series-1: #c0582a;
+  --series-2: #1f9e86;
+  --series-3: #b58200;
+  --series-4: #3d7fd6;
 }

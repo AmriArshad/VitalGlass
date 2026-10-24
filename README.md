@@ -26,7 +26,7 @@ It's written in Rust and TypeScript with [Tauri v2](https://v2.tauri.app/) and [
 - **Today's heart rate** in 5-minute averages, and your **recent workouts** with duration, average heart rate, calories and distance. Workouts logged by other apps through Health Connect (e.g. Hevy) are labelled.
 - **Works offline.** Everything is cached in a local SQLite database, so the app opens instantly with your last-known data and refreshes in the background.
 - **Syncs on its own** on launch, every 15 minutes, or when you press Sync. Closing the window keeps it running in the system tray.
-- **Fits into Plasma, or doesn't.** Breeze Dark and Breeze Light follow your Plasma colour scheme and accent colour. Three more themes change type and shape as well as colour: **Glass** (translucent cards on deep blue), **Monitor** (monospace phosphor green on black) and **Paper** (warm off-white with serif numerals).
+- **Fits into Plasma, or doesn't.** Breeze Dark and Breeze Light follow your Plasma colour scheme and accent colour. Five more themes change type and shape as well as colour: **Glass** (translucent cards on deep blue), **Monitor** (monospace phosphor green on black), **Cyberpunk** (glowing neon on violet-black), **Steampunk** (brass and parchment, small-caps serif) and **Paper** (warm off-white with serif numerals).
 - **Fails gracefully.** Missing permissions, an expired sign-in, an unlinked account or no network each get a clear message and a one-click fix, never a crash.
 
 <details>
@@ -133,7 +133,7 @@ npm run tauri dev
 
 - **Sync** fetches new data immediately. Otherwise VitalGlass syncs on launch and every 15 minutes while it's running.
 - **Closing the window** hides VitalGlass to the system tray, where it keeps syncing. Use **Quit** in the tray menu, or press **Ctrl+Q** in the window, to exit.
-- **The gear button** picks a theme: System, Breeze Dark, Breeze Light, Glass, Monitor or Paper. **System** follows your Plasma colour scheme and accent colour.
+- **The gear button** picks a theme: System, Breeze Dark, Breeze Light, Glass, Monitor, Paper, Cyberpunk or Steampunk. **System** follows your Plasma colour scheme and accent colour.
 - **"Updated…"** in the header is when VitalGlass last fetched from Google. The footer shows when your watch last synced to your phone; the API only has data up to that point.
 
 The command-line tool works from the same cache and sign-in:
@@ -181,7 +181,7 @@ npx vite --port 5174
 
 Then open `http://localhost:5174/?mock` (add `&theme=breeze-light&range=7` to preselect a theme and range). Port 5174 keeps 5173 free for `npm run tauri dev`.
 
-**Adding a theme** takes one block of tokens in [`src/themes.css`](src/themes.css) and one entry in [`src/lib/theme.svelte.ts`](src/lib/theme.svelte.ts). Colours are required; fonts, corner radii, numeral weight and the page background are optional overrides. Check the four chart colours for colour-blind separation and contrast against the theme's card colour.
+**Adding a theme** takes one block of tokens in [`src/themes.css`](src/themes.css) and one entry in [`src/lib/theme.svelte.ts`](src/lib/theme.svelte.ts). Colours are required; fonts, corner radii, numeral weight and glow, heading style and the page background are optional overrides. Check the four chart colours for colour-blind separation and contrast against the theme's card colour.
 
 ## Troubleshooting
 

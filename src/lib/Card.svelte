@@ -75,6 +75,9 @@
     font-weight: 600;
     color: var(--muted);
     margin: 0;
+    text-transform: var(--heading-transform);
+    letter-spacing: var(--heading-tracking);
+    font-variant-caps: var(--heading-caps);
   }
   .extra {
     font-size: 0.8rem;
