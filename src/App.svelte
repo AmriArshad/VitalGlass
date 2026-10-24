@@ -69,6 +69,18 @@
     wasSignedIn = signedIn
   })
 
+  // Sticky header: compact once the top 40px have scrolled away. An
+  // IntersectionObserver is cheaper than a scroll listener and never runs
+  // on scroll frames where nothing changes.
+  let compact = $state(false)
+  let sentinel = $state<HTMLElement>()
+  $effect(() => {
+    if (!sentinel) return
+    const observer = new IntersectionObserver(([entry]) => (compact = !entry.isIntersecting))
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  })
+
   const unlisteners: (() => void)[] = [initTheme()]
   let timer: ReturnType<typeof setInterval>
   onMount(async () => {
@@ -100,8 +112,10 @@
 <svelte:window onkeydown={onKey} />
 
 {#if showDashboard}
-  <header class="top">
-    <h1><Logo size={26} /> VitalGlass</h1>
+  <!-- Scrolling past this marks the header compact (see onMount). -->
+  <div class="scroll-sentinel" bind:this={sentinel} aria-hidden="true"></div>
+  <header class="top" class:compact>
+    <h1><span class="logo"><Logo size={26} /></span> VitalGlass</h1>
     <div class="actions">
       <span class="muted status" aria-live="polite">
         {syncing ? progress : `Updated ${fmtAgo(lastApiSync, now)}`}
@@ -113,6 +127,8 @@
       <ThemeMenu />
     </div>
   </header>
+  <!-- Holds the full header's space, since the header itself is fixed. -->
+  <div class="header-space" aria-hidden="true"></div>
 
   <main>
     {#if status?.state === 'offline'}
@@ -167,11 +183,63 @@
 {/if}
 
 <style>
+  .scroll-sentinel {
+    position: absolute;
+    top: 0;
+    height: 40px;
+    width: 1px;
+    pointer-events: none;
+  }
+
+  /* The header stays at the top and shrinks into a compact bar once you
+     scroll. It's fixed rather than part of the page flow, with
+     .header-space holding its full height, so shrinking it never moves
+     the content underneath. */
   .top {
+    --header-full: 3.6rem;
+    --header-compact: 2.6rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    box-sizing: border-box;
+    height: var(--header-full);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.9rem 1.5rem 0;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid transparent;
+    background: transparent;
+    transition:
+      height 220ms ease,
+      background-color 220ms ease,
+      border-color 220ms ease,
+      box-shadow 220ms ease;
+  }
+  .top.compact {
+    height: var(--header-compact);
+    background: var(--bg);
+    border-bottom-color: var(--border);
+    box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  }
+  .header-space {
+    height: 3.6rem;
+  }
+  /* Buttons shrink with the bar. */
+  .top :global(button) {
+    transition:
+      padding 220ms ease,
+      font-size 220ms ease,
+      border-color 120ms,
+      background-color 120ms;
+  }
+  .compact :global(button) {
+    padding: 0.15rem 0.6rem;
+    font-size: 0.85rem;
+  }
+  .compact :global(button.icon-only) {
+    padding: 0.2rem;
   }
   h1 {
     display: flex;
@@ -180,6 +248,17 @@
     font-size: 1.3rem;
     font-weight: 600;
     margin: 0;
+    transition: font-size 220ms ease;
+  }
+  .compact h1 {
+    font-size: 1.05rem;
+  }
+  .logo {
+    display: inline-flex;
+    transition: transform 220ms ease;
+  }
+  .compact .logo {
+    transform: scale(0.8);
   }
   .actions {
     display: flex;
@@ -192,9 +271,22 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition: font-size 220ms ease;
+  }
+  .compact .status {
+    font-size: 0.8rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .top,
+    .top :global(button),
+    h1,
+    .logo,
+    .status {
+      transition: none;
+    }
   }
   main {
-    padding: 1rem 1.5rem;
+    padding: 0.6rem 1.5rem 1rem;
   }
   .centered {
     max-width: 40rem;
