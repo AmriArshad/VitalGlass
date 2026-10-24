@@ -55,7 +55,9 @@ pub fn spawn_timer(app: AppHandle) {
     });
 }
 
-fn start(app: AppHandle) -> bool {
+/// Start a sync in the background unless one is running. Returns `false`
+/// if one already was.
+pub fn start(app: AppHandle) -> bool {
     let state = app.state::<AppState>();
     if state.syncing.swap(true, Ordering::SeqCst) {
         return false;

@@ -112,6 +112,9 @@ export interface SyncFinished {
 
 export const getDashboard = (rangeDays: number) => invoke<Dashboard>('dashboard', { rangeDays })
 
+/** Exit the app (closing the window only hides it to the tray). */
+export const quitApp = () => invoke('quit')
+
 /** Start a sync. Resolves to false if one is already running. */
 export const syncNow = () => invoke<boolean>('sync_now')
 

@@ -17,6 +17,7 @@
   import {
     onSyncFinished,
     onSyncProgress,
+    quitApp,
     syncNow,
     type Dashboard as DashboardData,
     type SyncFinished,
@@ -85,11 +86,18 @@
     timer = setInterval(() => (now = Date.now()), 60_000)
     status = await accountStatus()
   })
+  // Ctrl+Q quits; closing the window only hides it to the tray.
+  function onKey(e: KeyboardEvent) {
+    if (e.ctrlKey && e.key.toLowerCase() === 'q') quitApp()
+  }
+
   onDestroy(() => {
     unlisteners.forEach((u) => u())
     clearInterval(timer)
   })
 </script>
+
+<svelte:window onkeydown={onKey} />
 
 {#if showDashboard}
   <header class="top">

@@ -173,6 +173,8 @@ mockIPC(
         return build(Number(a.rangeDays) || 30)
       case 'desktop_theme':
         return { accent: null, dark: null }
+      case 'quit':
+        return null
       case 'sync_now':
         // Pretend to sync for a couple of seconds.
         setTimeout(() => emit('sync-progress', 'steps: 14 items'), 400)
