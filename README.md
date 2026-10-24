@@ -195,6 +195,10 @@ Then open `http://localhost:5174/?mock` (add `&theme=breeze-light&range=7` to pr
 | `npm run tauri dev` says port 5173 is in use | Another Vite server is running. Stop it, or use port 5174 for mock mode. |
 | Launching does nothing | VitalGlass is already running in the tray; a second launch just brings that window forward. |
 
+## Licence
+
+[MIT](LICENSE). Use, change and share the code freely; it comes with no warranty.
+
 ---
 
 VitalGlass is a personal project. It isn't affiliated with or endorsed by Google or Fitbit.

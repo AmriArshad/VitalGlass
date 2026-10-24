@@ -3,6 +3,7 @@ name = "vitalglass"
 version = "0.1.0"
 description = "Desktop dashboard for your own Google Health data"
 edition.workspace = true
+license.workspace = true
 repository.workspace = true
 
 [lib]
