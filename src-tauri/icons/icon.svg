@@ -1,0 +1,26 @@
+<!--
+  VitalGlass app icon: the Logo.svelte mark (a glass pane with a heartbeat
+  line) with fixed Breeze-blue colours. Every PNG/ICO/ICNS in this folder is
+  generated from it:  npx tauri icon src-tauri/icons/icon.svg
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="pane" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4cbcf3" />
+      <stop offset="1" stop-color="#1d84c4" />
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#pane)" />
+  <!-- glass highlight in the top-left corner -->
+  <path d="M4 26 Q4 4 26 4 L44 4 Q20 10 4 34 Z" fill="#ffffff" opacity="0.2" />
+  <!-- thin rim so the pane reads on light and dark panels -->
+  <rect x="4.5" y="4.5" width="55" height="55" rx="13.5" fill="none" stroke="#ffffff" stroke-opacity="0.25" />
+  <polyline
+    points="12,36 22,36 27,24 33,46 38,30 42,36 52,36"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="4.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
