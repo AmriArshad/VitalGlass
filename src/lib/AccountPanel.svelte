@@ -1,12 +1,13 @@
 <!--
   Shows the account state and the one action that fixes it
   (sign in, sign in again, retry...). Every AccountStatus variant has a case.
+  App.svelte owns the status and shows this panel whenever the dashboard
+  can't be shown; actions here update the shared status.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte'
   import { accountStatus, signIn, signOut, type AccountStatus } from './account'
 
-  let status = $state<AccountStatus | null>(null)
+  let { status = $bindable() }: { status: AccountStatus | null } = $props()
   let busy = $state(false)
 
   async function run(action: () => Promise<AccountStatus>) {
@@ -19,11 +20,6 @@
       busy = false
     }
   }
-
-  // Check the stored session once when the panel first appears.
-  onMount(() => {
-    run(accountStatus)
-  })
 </script>
 
 <section class="panel" aria-busy={busy}>
