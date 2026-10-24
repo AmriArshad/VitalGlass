@@ -199,4 +199,11 @@
     flex: 1;
     min-height: 220px;
   }
+  /* The canvas is taken out of the layout so only the container sets the
+     chart's size. Otherwise a chart that grew with its card (e.g. when the
+     workout list expands) would hold the card open when it should shrink. */
+  .chart canvas {
+    position: absolute;
+    inset: 0;
+  }
 </style>
