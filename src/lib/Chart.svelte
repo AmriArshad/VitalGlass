@@ -53,10 +53,22 @@
     format?: (v: number) => string
     /** Accessible description of the chart. */
     ariaLabel: string
-    height?: number
+    /** Pixel height, or 'fill' to grow into the card. */
+    height?: number | 'fill'
+    /** Which x-axis labels to show, by index. Default: Chart.js auto-skip. */
+    showTick?: (index: number) => boolean
   }
 
-  let { type, labels, series, stacked = false, format = (v) => String(v), ariaLabel, height = 180 }: Props = $props()
+  let {
+    type,
+    labels,
+    series,
+    stacked = false,
+    format = (v) => String(v),
+    ariaLabel,
+    height = 190,
+    showTick,
+  }: Props = $props()
 
   let canvas: HTMLCanvasElement
   let chart: Chart | null = null
@@ -88,7 +100,8 @@
             pointHoverRadius: 4,
             pointHoverBorderColor: surface,
             pointHoverBorderWidth: 2,
-            tension: 0.25,
+            // Monotone smoothing never overshoots the data, unlike plain tension.
+            cubicInterpolationMode: 'monotone' as const,
             spanGaps: false,
           }
     })
@@ -128,7 +141,16 @@
             stacked,
             grid: { display: false },
             border: { color: grid },
-            ticks: { color: muted, maxRotation: 0, autoSkipPadding: 16 },
+            ticks: showTick
+              ? {
+                  color: muted,
+                  maxRotation: 0,
+                  autoSkip: false,
+                  callback(value, index) {
+                    return showTick(index) ? this.getLabelForValue(Number(value)) : ''
+                  },
+                }
+              : { color: muted, maxRotation: 0, autoSkipPadding: 16 },
           },
           y: {
             stacked,
@@ -156,7 +178,13 @@
   onDestroy(() => chart?.destroy())
 </script>
 
-<div class="chart" style:height="{height}px" role="img" aria-label={ariaLabel}>
+<div
+  class="chart"
+  class:fill={height === 'fill'}
+  style:height={height === 'fill' ? null : `${height}px`}
+  role="img"
+  aria-label={ariaLabel}
+>
   <canvas bind:this={canvas}></canvas>
 </div>
 
@@ -164,5 +192,9 @@
   .chart {
     position: relative;
     width: 100%;
+  }
+  .chart.fill {
+    flex: 1;
+    min-height: 220px;
   }
 </style>

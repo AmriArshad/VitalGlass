@@ -6,11 +6,12 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import Card from './Card.svelte'
+  import Icon, { type IconName } from './Icon.svelte'
   import Chart from './Chart.svelte'
   import Stat from './Stat.svelte'
   import WorkoutList from './WorkoutList.svelte'
   import { cardPermission, getDashboard, onDataChanged, type Dashboard } from './dashboard'
-  import { civilDays, fmtCivil, fmtInt, fmtKm, fmtMinutes, fmtTime } from './format'
+  import { civilDays, fmtCivil, fmtLongDate, fmtInt, fmtKm, fmtMinutes, fmtTime } from './format'
 
   interface Props {
     onreauth: () => void
@@ -114,13 +115,53 @@
   }
   const fmtAvg = (values: (number | null | undefined)[], digits: number) => avg(values)?.toFixed(digits) ?? '–'
   const hrLabels = $derived(data?.heart_rate_today.map((b) => fmtTime(b.start_utc)) ?? [])
+  /** Label the heart rate axis every 3 hours, on the hour. */
+  const hrTickAt = $derived(
+    data?.heart_rate_today.map((b) => {
+      const t = new Date(b.start_utc)
+      return t.getMinutes() === 0 && t.getHours() % 3 === 0
+    }) ?? [],
+  )
+  const hrRange = $derived.by(() => {
+    const v = data?.heart_rate_today.map((b) => b.bpm_avg) ?? []
+    return v.length ? `${Math.round(Math.min(...v))}–${Math.round(Math.max(...v))} bpm` : ''
+  })
+
+  /** Sleep stages in chart order, with their series colour. */
+  const stages = $derived(
+    (
+      [
+        ['Deep', 'minutes_deep', '--series-1'],
+        ['Light', 'minutes_light', '--series-2'],
+        ['REM', 'minutes_rem', '--series-3'],
+        ['Awake', 'minutes_awake', '--series-4'],
+      ] as const
+    ).map(([label, key, color]) => ({ label, key, color, minutes: lastSleep?.[key] ?? null })),
+  )
+
+  /** The small stats in the Vitals card. VO2 max and weight only when present. */
+  const vitalTiles = $derived.by(() => {
+    const denied = (t: string) => perm([t]) === 'permission_denied'
+    const tiles: { label: string; icon: IconName; value: string | null; unit: string; sub: string; denied: boolean }[] = [
+      { label: 'HRV', icon: 'activity', value: hrv?.value.toFixed(0) ?? null, unit: 'ms', sub: sinceLabel(hrv?.date), denied: denied('daily-heart-rate-variability') },
+      { label: 'SpO₂', icon: 'droplet', value: spo2?.value.toFixed(1) ?? null, unit: '%', sub: sinceLabel(spo2?.date), denied: denied('daily-oxygen-saturation') },
+      { label: 'Breathing', icon: 'lungs', value: breathing?.value.toFixed(1) ?? null, unit: 'br/min', sub: sinceLabel(breathing?.date), denied: denied('daily-respiratory-rate') },
+    ]
+    if (vo2) tiles.push({ label: 'VO₂ max', icon: 'run', value: vo2.value.toFixed(0), unit: 'ml/kg/min', sub: sinceLabel(vo2.date), denied: false })
+    if (weight) tiles.push({ label: 'Weight', icon: 'scale', value: (weight.grams / 1000).toFixed(1), unit: 'kg', sub: sinceLabel(weight.civil_date), denied: false })
+    return tiles
+  })
 </script>
 
 {#if error}
   <p class="error">Couldn't read the local cache: {error}</p>
 {:else if data}
-  <div class="tiles">
-    <Card title="Steps today" icon="shoe" state={perm(['steps'])} {onreauth}>
+  <div class="section-head">
+    <h2>Today</h2>
+    <span class="muted">{fmtLongDate(data.today)}</span>
+  </div>
+  <div class="grid four">
+    <Card title="Steps" icon="shoe" state={perm(['steps'])} {onreauth}>
       <Stat
         value={fmtInt(today?.steps)}
         sub="{fmtKm(today?.distance_m)} km{today?.floors != null ? ` · ${today.floors} floors` : ''}"
@@ -136,17 +177,25 @@
       />
     </Card>
     <Card title="Calories" icon="flame" state={perm(['total-calories'])} {onreauth}>
-      <Stat value={fmtInt(today?.calories_kcal)} unit="kcal" sub="so far today" />
+      <Stat value={fmtInt(today?.calories_kcal)} unit="kcal" sub="burned so far" />
     </Card>
     <Card
-      title="Resting heart rate" icon="heart"
+      title="Resting heart rate"
+      icon="heart"
       state={perm(['daily-resting-heart-rate']) === 'ok' && !restingHr ? 'empty' : perm(['daily-resting-heart-rate'])}
       {onreauth}
     >
       <Stat value={fmtInt(restingHr?.value)} unit="bpm" sub={sinceLabel(restingHr?.date)} />
     </Card>
+  </div>
+
+  <div class="section-head">
+    <h2>Last night</h2>
+  </div>
+  <div class="grid two">
     <Card
-      title="Last sleep" icon="moon"
+      title="Sleep"
+      icon="moon"
       state={perm(['sleep']) === 'ok' && !lastSleep ? 'empty' : perm(['sleep'])}
       emptyText="No sleep recorded"
       {onreauth}
@@ -154,42 +203,40 @@
       {#if lastSleep}
         <Stat
           value={fmtMinutes(lastSleep.minutes_asleep)}
-          sub="{fmtTime(lastSleep.start_utc)}–{fmtTime(lastSleep.end_utc)}{sleepEfficiency
+          unit="asleep"
+          sub="{fmtTime(lastSleep.start_utc)} – {fmtTime(lastSleep.end_utc)}{sleepEfficiency
             ? ` · ${sleepEfficiency}% efficient`
-            : ''}"
+            : ''}{lastSleep.civil_end_date !== data.today ? ` · ${fmtCivil(lastSleep.civil_end_date)}` : ''}"
         />
         {#if lastSleep.minutes_deep != null}
-          <p class="stages">
-            <span><i style:background="var(--series-1)"></i>Deep {fmtMinutes(lastSleep.minutes_deep)}</span>
-            <span><i style:background="var(--series-2)"></i>Light {fmtMinutes(lastSleep.minutes_light)}</span>
-            <span><i style:background="var(--series-3)"></i>REM {fmtMinutes(lastSleep.minutes_rem)}</span>
-            <span><i style:background="var(--series-4)"></i>Awake {fmtMinutes(lastSleep.minutes_awake)}</span>
+          <div class="stagebar" role="img" aria-label="Sleep stages">
+            {#each stages as st (st.label)}
+              <span style:flex-grow={st.minutes ?? 0} style:background="var({st.color})"></span>
+            {/each}
+          </div>
+          <p class="legend">
+            {#each stages as st (st.label)}
+              <span><i style:background="var({st.color})"></i>{st.label} <b>{fmtMinutes(st.minutes)}</b></span>
+            {/each}
           </p>
         {/if}
       {/if}
     </Card>
-  </div>
-
-  <div class="tiles small">
-    <Card title="HRV" icon="activity" state={perm(['daily-heart-rate-variability']) === 'ok' && !hrv ? 'empty' : perm(['daily-heart-rate-variability'])} {onreauth}>
-      <Stat value={hrv ? hrv.value.toFixed(0) : '–'} unit="ms" sub={sinceLabel(hrv?.date)} />
+    <Card title="Vitals" icon="activity">
+      <div class="minis">
+        {#each vitalTiles as m (m.label)}
+          <div class="mini">
+            <p class="mini-label"><Icon name={m.icon} size={14} />{m.label}</p>
+            {#if m.denied}
+              <p class="mini-sub">Permission not granted</p>
+            {:else}
+              <p class="mini-value">{m.value ?? '–'}<span class="unit">{m.unit}</span></p>
+              <p class="mini-sub">{m.sub}</p>
+            {/if}
+          </div>
+        {/each}
+      </div>
     </Card>
-    <Card title="SpO₂" icon="droplet" state={perm(['daily-oxygen-saturation']) === 'ok' && !spo2 ? 'empty' : perm(['daily-oxygen-saturation'])} {onreauth}>
-      <Stat value={spo2 ? spo2.value.toFixed(1) : '–'} unit="%" sub={sinceLabel(spo2?.date)} />
-    </Card>
-    <Card title="Breathing rate" icon="lungs" state={perm(['daily-respiratory-rate']) === 'ok' && !breathing ? 'empty' : perm(['daily-respiratory-rate'])} {onreauth}>
-      <Stat value={breathing ? breathing.value.toFixed(1) : '–'} unit="br/min" sub={sinceLabel(breathing?.date)} />
-    </Card>
-    {#if vo2}
-      <Card title="VO₂ max" icon="run">
-        <Stat value={vo2.value.toFixed(0)} unit="ml/kg/min" sub={sinceLabel(vo2.date)} />
-      </Card>
-    {/if}
-    {#if weight}
-      <Card title="Weight" icon="scale">
-        <Stat value={(weight.grams / 1000).toFixed(1)} unit="kg" sub={sinceLabel(weight.civil_date)} />
-      </Card>
-    {/if}
   </div>
 
   <div class="section-head">
@@ -200,8 +247,7 @@
       {/each}
     </div>
   </div>
-
-  <div class="charts">
+  <div class="grid two">
     <Card title="Resting heart rate" icon="heart" state={perm(['daily-resting-heart-rate'])} {onreauth}>
       {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.resting_hr), 0)} bpm{/snippet}
       <Chart
@@ -228,12 +274,11 @@
         type="bar"
         stacked
         {labels}
-        series={[
-          { label: 'Deep', color: '--series-1', data: days.map((d) => hours(nights.get(d)?.minutes_deep)) },
-          { label: 'Light', color: '--series-2', data: days.map((d) => hours(nights.get(d)?.minutes_light)) },
-          { label: 'REM', color: '--series-3', data: days.map((d) => hours(nights.get(d)?.minutes_rem)) },
-          { label: 'Awake', color: '--series-4', data: days.map((d) => hours(nights.get(d)?.minutes_awake)) },
-        ]}
+        series={stages.map((st) => ({
+          label: st.label,
+          color: st.color,
+          data: days.map((d) => hours(nights.get(d)?.[st.key])),
+        }))}
         format={(v) => fmtMinutes(v * 60)}
         ariaLabel="Sleep stages per night"
       />
@@ -250,23 +295,30 @@
     </Card>
   </div>
 
-  <div class="charts wide">
+  <div class="section-head">
+    <h2>Activity</h2>
+  </div>
+  <div class="grid wide">
     <Card
-      title="Heart rate today" icon="heartbeat"
+      title="Heart rate today"
+      icon="heartbeat"
       state={perm(['heart-rate']) === 'ok' && data.heart_rate_today.length === 0 ? 'empty' : perm(['heart-rate'])}
       {onreauth}
     >
+      {#snippet extra()}{hrRange}{/snippet}
       <Chart
         type="line"
         labels={hrLabels}
         series={[{ label: 'Heart rate', color: '--series-1', data: data.heart_rate_today.map((b) => b.bpm_avg) }]}
         format={(v) => `${Math.round(v)} bpm`}
+        showTick={(i) => hrTickAt[i]}
         ariaLabel="Heart rate today in 5-minute averages"
-        height={200}
+        height="fill"
       />
     </Card>
     <Card
-      title="Recent workouts" icon="run"
+      title="Recent workouts"
+      icon="run"
       state={perm(['exercise']) === 'ok' && data.workouts.length === 0 ? 'empty' : perm(['exercise'])}
       emptyText="No workouts recorded"
       {onreauth}
@@ -279,44 +331,131 @@
 {/if}
 
 <style>
-  .tiles {
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.4rem 0 0.6rem;
+  }
+  .section-head:first-child {
+    margin-top: 0.4rem;
+  }
+  .section-head h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .section-head .muted {
+    font-size: 0.85rem;
+  }
+  .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
   }
-  .tiles.small :global(.value) {
-    font-size: 1.4rem;
+  .grid.four {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .stages {
+  .grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid.wide {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+  @media (max-width: 1000px) {
+    .grid.four {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .grid.two,
+    .grid.wide {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* Last night's sleep: one bar split by stage, 2px gaps between segments. */
+  .stagebar {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    margin: 0.9rem 0 0.5rem;
+  }
+  .stagebar span {
+    flex-basis: 0;
+    min-width: 2px;
+  }
+  .stagebar span:first-child {
+    border-radius: 4px 0 0 4px;
+  }
+  .stagebar span:last-child {
+    border-radius: 0 4px 4px 0;
+  }
+  .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.2rem 0.75rem;
+    gap: 0.25rem 1rem;
     font-size: 0.8rem;
     color: var(--muted);
-    margin: 0.5rem 0 0;
+    margin: 0;
   }
-  .stages i {
+  .legend b {
+    color: var(--text);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .legend i {
     display: inline-block;
     width: 8px;
     height: 8px;
     border-radius: 2px;
-    margin-right: 0.3rem;
+    margin-right: 0.35rem;
   }
-  .section-head {
-    display: flex;
+
+  /* Vitals card: small stats in equal columns, divided by hairlines. */
+  .minis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    flex: 1;
     align-items: center;
-    justify-content: space-between;
-    margin: 1.25rem 0 0.75rem;
   }
-  .section-head h2 {
-    font-size: 1rem;
+  .mini {
+    padding: 0.2rem 0.9rem;
+    border-left: 1px solid var(--border);
+  }
+  .mini:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+  .mini p {
     margin: 0;
   }
+  .mini-label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .mini-value {
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+  }
+  .mini-value .unit {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 0.25rem;
+  }
+  .mini-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
   .toggle {
     display: flex;
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 5px;
     overflow: hidden;
   }
   .toggle button {
@@ -324,27 +463,15 @@
     border: none;
     border-radius: 0;
     color: var(--muted);
-    padding: 0.25rem 0.75rem;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .toggle button + button {
+    border-left: 1px solid var(--border);
   }
   .toggle button.active {
-    background: var(--surface-raised);
-    color: var(--text);
-  }
-  .charts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
-  .charts.wide {
-    grid-template-columns: 3fr 2fr;
-    /* Don't stretch the heart rate card to the workout list's height. */
-    align-items: start;
-  }
-  @media (max-width: 1000px) {
-    .charts.wide {
-      grid-template-columns: 1fr;
-    }
+    background: var(--accent);
+    color: var(--on-accent);
   }
   .error {
     color: var(--bad);

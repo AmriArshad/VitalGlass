@@ -3,7 +3,9 @@
   import type { Workout } from './dashboard'
   import { fmtDay, fmtEnum, fmtInt, fmtKm, fmtMinutes, fmtTime } from './format'
 
-  let { workouts }: { workouts: Workout[] } = $props()
+  let { workouts, limit = 5 }: { workouts: Workout[]; limit?: number } = $props()
+  let expanded = $state(false)
+  const shown = $derived(expanded ? workouts : workouts.slice(0, limit))
 
   /** Health Connect apps other than Google's own are labelled, e.g. "Hevy". */
   function source(w: Workout): string | null {
@@ -24,7 +26,7 @@
     </tr>
   </thead>
   <tbody>
-    {#each workouts as w (w.id)}
+    {#each shown as w (w.id)}
       <tr>
         <td>
           <div class="name">
@@ -41,6 +43,11 @@
     {/each}
   </tbody>
 </table>
+{#if workouts.length > limit}
+  <button class="link more" onclick={() => (expanded = !expanded)}>
+    {expanded ? 'Show fewer' : `Show ${workouts.length - limit} more`}
+  </button>
+{/if}
 
 <style>
   table {
@@ -68,6 +75,11 @@
   .when {
     color: var(--muted);
     font-size: 0.8rem;
+  }
+  .more {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    align-self: flex-start;
   }
   .tag {
     font-size: 0.7rem;

@@ -30,6 +30,12 @@ export function fmtCivil(date: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(locale, { day: 'numeric', month: 'short' })
 }
 
+/** "2026-10-24" (civil) -> "Saturday 24 October" */
+export function fmtLongDate(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })
+}
+
 /** "12 min ago", "3 h ago", "2 days ago" */
 export function fmtAgo(utc: string | null | undefined, now = Date.now()): string {
   if (!utc) return 'never'

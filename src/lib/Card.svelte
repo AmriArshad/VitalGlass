@@ -37,7 +37,7 @@
   {:else if state === 'empty'}
     <p class="message">{emptyText}</p>
   {:else}
-    {@render children()}
+    <div class="body">{@render children()}</div>
   {/if}
 </section>
 
@@ -49,6 +49,16 @@
     box-shadow: var(--shadow);
     padding: 0.85rem 1.1rem 1rem;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Content fills the card, so cards in a row share one height and a
+     chart can grow into the space. */
+  .body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
   }
   header {
     display: flex;
