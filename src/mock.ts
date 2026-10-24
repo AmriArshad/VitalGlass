@@ -8,7 +8,16 @@
 import { emit } from '@tauri-apps/api/event'
 import { mockIPC } from '@tauri-apps/api/mocks'
 import { theme } from './lib/theme.svelte'
-import type { Dashboard, DailyActivity, DailyVitals, HeartRateBucket, SleepSession, Workout } from './lib/dashboard'
+import type {
+  Dashboard,
+  DailyActivity,
+  DailyVitals,
+  HeartRateBucket,
+  SleepSession,
+  SleepStageSegment,
+  StepsBucket,
+  Workout,
+} from './lib/dashboard'
 
 const HISTORY = 90
 
@@ -108,6 +117,34 @@ function build(rangeDays: number): Dashboard {
     heart_rate_today.push({ start_utc: utc(new Date(t)), bpm_avg: bpm, bpm_min: bpm - 6, bpm_max: bpm + 9 })
   }
 
+  // Hourly steps since midnight: quiet overnight, busier at lunch and evening.
+  const steps_today: StepsBucket[] = []
+  for (let h = 0; h <= now.getHours(); h++) {
+    const busy = h < 7 ? 0 : h === 12 ? 2600 : h === 18 ? 1800 : 450
+    steps_today.push({ start_utc: utc(daysAgo(0, h)), steps: Math.max(0, Math.round(around(busy, busy * 0.4))) })
+  }
+
+  // Last night's stages: about five 90-minute cycles, deeper early, more REM late.
+  const last = sleep.at(-1)!
+  const last_sleep_stages: SleepStageSegment[] = []
+  let t = new Date(last.start_utc).getTime()
+  const stop = new Date(last.end_utc).getTime()
+  for (let cycle = 0; t < stop; cycle++) {
+    const plan: [string, number][] = [
+      ['LIGHT', around(25, 8)],
+      ['DEEP', Math.max(5, around(cycle < 2 ? 30 : 8, 6))],
+      ['LIGHT', around(20, 6)],
+      ['REM', around(cycle < 2 ? 10 : 25, 6)],
+      ['AWAKE', r() > 0.5 ? around(4, 2) : 1],
+    ]
+    for (const [stage, mins] of plan) {
+      const end = Math.min(t + mins * 60_000, stop)
+      if (end <= t) break
+      last_sleep_stages.push({ start_utc: utc(new Date(t)), end_utc: utc(new Date(end)), stage })
+      t = end
+    }
+  }
+
   const kinds: [string, string, number, number | null, number | null, string | null][] = [
     ['WALKING', 'Walk', 28, 104, 1900, null],
     ['STRENGTH_TRAINING', 'Strength training', 62, 121, null, null],
@@ -146,6 +183,10 @@ function build(rangeDays: number): Dashboard {
     sleep: sleep.filter((s) => s.civil_end_date >= startDate),
     last_sleep: sleep.at(-1)!,
     heart_rate_today,
+    steps_today,
+    last_sleep_stages,
+    baseline_vitals: vitals.slice(-31, -1),
+    baseline_sleep: sleep.slice(-31, -1),
     workouts,
     weight: [{ sampled_utc: utc(daysAgo(1, 7, 30)), civil_date: civil(daysAgo(1)), grams: 72_400 }],
     devices: [

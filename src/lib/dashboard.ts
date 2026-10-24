@@ -65,6 +65,18 @@ export interface HeartRateBucket {
   bpm_max: number | null
 }
 
+export interface StepsBucket {
+  start_utc: string
+  steps: number
+}
+
+export interface SleepStageSegment {
+  start_utc: string
+  end_utc: string
+  /** AWAKE, LIGHT, DEEP, REM (stages) or ASLEEP, RESTLESS (classic). */
+  stage: string
+}
+
 export interface WeightSample {
   sampled_utc: string
   civil_date: string
@@ -97,6 +109,11 @@ export interface Dashboard {
   sleep: SleepSession[]
   last_sleep: SleepSession | null
   heart_rate_today: HeartRateBucket[]
+  steps_today: StepsBucket[]
+  last_sleep_stages: SleepStageSegment[]
+  /** Last 30 days of vitals and sleep, whatever the range, for averages. */
+  baseline_vitals: DailyVitals[]
+  baseline_sleep: SleepSession[]
   workouts: Workout[]
   weight: WeightSample[]
   devices: Device[]

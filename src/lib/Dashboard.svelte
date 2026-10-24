@@ -8,6 +8,7 @@
   import Card from './Card.svelte'
   import Icon, { type IconName } from './Icon.svelte'
   import Chart from './Chart.svelte'
+  import SleepTimeline from './SleepTimeline.svelte'
   import Stat from './Stat.svelte'
   import WorkoutList from './WorkoutList.svelte'
   import { cardPermission, getDashboard, onDataChanged, type Dashboard } from './dashboard'
@@ -21,7 +22,8 @@
 
   let { onreauth, data = $bindable(null) }: Props = $props()
 
-  const RANGES = [7, 30, 90] as const
+  /** Trend ranges in days; 1 is the "Today" view with intraday charts. */
+  const RANGES = [1, 7, 30, 90] as const
   const RANGE_KEY = 'vitalglass.range'
   let range = $state<number>(loadRange())
   let error = $state<string | null>(null)
@@ -126,6 +128,55 @@
     const v = data?.heart_rate_today.map((b) => b.bpm_avg) ?? []
     return v.length ? `${Math.round(Math.min(...v))}–${Math.round(Math.max(...v))} bpm` : ''
   })
+
+  // --- Today view -----------------------------------------------------------
+
+  const isToday = $derived(range === 1)
+
+  const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`)
+  /** Steps per local hour today; hours still to come are null. */
+  const stepsByHour = $derived.by(() => {
+    const out: (number | null)[] = Array(24).fill(null)
+    for (const b of data?.steps_today ?? []) out[new Date(b.start_utc).getHours()] = b.steps
+    return out
+  })
+  const stepsTodayTotal = $derived((data?.steps_today ?? []).reduce((a, b) => a + b.steps, 0))
+
+  const sleepWindow = $derived.by(() => {
+    const st = data?.last_sleep_stages ?? []
+    return st.length ? `${fmtTime(st[0].start_utc)} – ${fmtTime(st.at(-1)!.end_utc)}` : ''
+  })
+
+  /** Last night against the previous 30 days. Differences are shown, not judged. */
+  const comparison = $derived.by(() => {
+    if (!data) return []
+    const base = data.baseline_vitals
+    const rows: { label: string; icon: IconName; now: number | null; avg: number | null; unit: string; digits: number }[] = [
+      {
+        label: 'Sleep',
+        icon: 'moon',
+        now: lastSleep?.minutes_asleep ?? null,
+        avg: avg(data.baseline_sleep.filter((s) => s.main_sleep).map((s) => s.minutes_asleep)),
+        unit: 'min',
+        digits: 0,
+      },
+      { label: 'Resting HR', icon: 'heart', now: restingHr?.value ?? null, avg: avg(base.map((v) => v.resting_hr)), unit: 'bpm', digits: 0 },
+      { label: 'HRV', icon: 'activity', now: hrv?.value ?? null, avg: avg(base.map((v) => v.hrv_ms)), unit: 'ms', digits: 0 },
+      { label: 'SpO₂', icon: 'droplet', now: spo2?.value ?? null, avg: avg(base.map((v) => v.spo2_avg)), unit: '%', digits: 1 },
+      { label: 'Breathing', icon: 'lungs', now: breathing?.value ?? null, avg: avg(base.map((v) => v.resp_rate)), unit: 'br/min', digits: 1 },
+    ]
+    return rows
+  })
+  /** Sleep as hours and minutes; everything else as a bare number (the unit
+      is shown once, next to last night's value). */
+  const fmtValue = (v: number | null, unit: string, digits: number) =>
+    v == null ? '–' : unit === 'min' ? fmtMinutes(v) : v.toFixed(digits)
+  function fmtDiff(now: number | null, base: number | null, unit: string, digits: number): string {
+    if (now == null || base == null) return ''
+    const d = now - base
+    const sign = d > 0 ? '+' : d < 0 ? '−' : '±'
+    return `${sign}${fmtValue(Math.abs(d), unit, digits)}`
+  }
 
   /** Sleep stages in chart order, with their series colour. */
   const stages = $derived(
@@ -239,61 +290,115 @@
     </Card>
   </div>
 
+
   <div class="section-head">
-    <h2>Trends</h2>
+    <h2>{isToday ? 'Today in detail' : 'Trends'}</h2>
     <div class="toggle" role="group" aria-label="Trend range">
       {#each RANGES as n (n)}
-        <button class:active={range === n} aria-pressed={range === n} onclick={() => setRange(n)}>{n} days</button>
+        <button class:active={range === n} aria-pressed={range === n} onclick={() => setRange(n)}>
+          {n === 1 ? 'Today' : `${n} days`}
+        </button>
       {/each}
     </div>
   </div>
-  <div class="grid two">
-    <Card title="Resting heart rate" icon="heart" state={perm(['daily-resting-heart-rate'])} {onreauth}>
-      {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.resting_hr), 0)} bpm{/snippet}
-      <Chart
-        type="line"
-        {labels}
-        series={[{ label: 'Resting HR', color: '--series-1', data: days.map((d) => vitals.get(d)?.resting_hr ?? null) }]}
-        format={(v) => `${Math.round(v)} bpm`}
-        ariaLabel="Resting heart rate per day"
-      />
-    </Card>
-    <Card title="Heart rate variability" icon="activity" state={perm(['daily-heart-rate-variability'])} {onreauth}>
-      {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.hrv_ms), 0)} ms{/snippet}
-      <Chart
-        type="line"
-        {labels}
-        series={[{ label: 'HRV', color: '--series-1', data: days.map((d) => vitals.get(d)?.hrv_ms ?? null) }]}
-        format={(v) => `${Math.round(v)} ms`}
-        ariaLabel="Heart rate variability per night"
-      />
-    </Card>
-    <Card title="Sleep" icon="moon" state={perm(['sleep'])} {onreauth}>
-      {#snippet extra()}avg {fmtMinutes(avg(days.map((d) => nights.get(d)?.minutes_asleep)))} asleep{/snippet}
-      <Chart
-        type="bar"
-        stacked
-        {labels}
-        series={stages.map((st) => ({
-          label: st.label,
-          color: st.color,
-          data: days.map((d) => hours(nights.get(d)?.[st.key])),
-        }))}
-        format={(v) => fmtMinutes(v * 60)}
-        ariaLabel="Sleep stages per night"
-      />
-    </Card>
-    <Card title="Steps" icon="shoe" state={perm(['steps'])} {onreauth}>
-      {#snippet extra()}avg {fmtInt(avg(days.map((d) => activity.get(d)?.steps)))} a day{/snippet}
-      <Chart
-        type="bar"
-        {labels}
-        series={[{ label: 'Steps', color: '--series-1', data: days.map((d) => activity.get(d)?.steps ?? null) }]}
-        format={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}K` : String(Math.round(v)))}
-        ariaLabel="Steps per day"
-      />
-    </Card>
-  </div>
+  {#if isToday}
+    <div class="grid three">
+      <Card
+        title="Steps by hour"
+        icon="shoe"
+        state={perm(['steps-hourly']) === 'ok' && data.steps_today.length === 0 ? 'empty' : perm(['steps-hourly'])}
+        {onreauth}
+      >
+        {#snippet extra()}{fmtInt(stepsTodayTotal)} today{/snippet}
+        <Chart
+          type="bar"
+          labels={HOURS}
+          series={[{ label: 'Steps', color: '--series-1', data: stepsByHour }]}
+          format={(v) => fmtInt(v)}
+          showTick={(i) => i % 3 === 0}
+          ariaLabel="Steps per hour today"
+          height="fill"
+        />
+      </Card>
+      <Card
+        title="Last night's sleep"
+        icon="moon"
+        state={perm(['sleep']) === 'ok' && data.last_sleep_stages.length === 0 ? 'empty' : perm(['sleep'])}
+        emptyText="No sleep stages recorded"
+        {onreauth}
+      >
+        {#snippet extra()}{sleepWindow}{/snippet}
+        <SleepTimeline segments={data.last_sleep_stages} />
+      </Card>
+      <Card title="Last night vs your average" icon="activity">
+        <table class="compare">
+          <thead>
+            <tr><th></th><th class="num">Last night</th><th class="num">30-day avg</th><th class="num">Change</th></tr>
+          </thead>
+          <tbody>
+            {#each comparison as row (row.label)}
+              <tr>
+                <td class="metric"><Icon name={row.icon} size={14} />{row.label}</td>
+                <td class="num strong">
+                  {fmtValue(row.now, row.unit, row.digits)}<span class="unit">{row.unit === 'min' ? '' : row.unit}</span>
+                </td>
+                <td class="num">{fmtValue(row.avg, row.unit, row.digits)}</td>
+                <td class="num">{fmtDiff(row.now, row.avg, row.unit, row.digits)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  {:else}
+    <div class="grid two">
+      <Card title="Resting heart rate" icon="heart" state={perm(['daily-resting-heart-rate'])} {onreauth}>
+        {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.resting_hr), 0)} bpm{/snippet}
+        <Chart
+          type="line"
+          {labels}
+          series={[{ label: 'Resting HR', color: '--series-1', data: days.map((d) => vitals.get(d)?.resting_hr ?? null) }]}
+          format={(v) => `${Math.round(v)} bpm`}
+          ariaLabel="Resting heart rate per day"
+        />
+      </Card>
+      <Card title="Heart rate variability" icon="activity" state={perm(['daily-heart-rate-variability'])} {onreauth}>
+        {#snippet extra()}avg {fmtAvg(days.map((d) => vitals.get(d)?.hrv_ms), 0)} ms{/snippet}
+        <Chart
+          type="line"
+          {labels}
+          series={[{ label: 'HRV', color: '--series-1', data: days.map((d) => vitals.get(d)?.hrv_ms ?? null) }]}
+          format={(v) => `${Math.round(v)} ms`}
+          ariaLabel="Heart rate variability per night"
+        />
+      </Card>
+      <Card title="Sleep" icon="moon" state={perm(['sleep'])} {onreauth}>
+        {#snippet extra()}avg {fmtMinutes(avg(days.map((d) => nights.get(d)?.minutes_asleep)))} asleep{/snippet}
+        <Chart
+          type="bar"
+          stacked
+          {labels}
+          series={stages.map((st) => ({
+            label: st.label,
+            color: st.color,
+            data: days.map((d) => hours(nights.get(d)?.[st.key])),
+          }))}
+          format={(v) => fmtMinutes(v * 60)}
+          ariaLabel="Sleep stages per night"
+        />
+      </Card>
+      <Card title="Steps" icon="shoe" state={perm(['steps'])} {onreauth}>
+        {#snippet extra()}avg {fmtInt(avg(days.map((d) => activity.get(d)?.steps)))} a day{/snippet}
+        <Chart
+          type="bar"
+          {labels}
+          series={[{ label: 'Steps', color: '--series-1', data: days.map((d) => activity.get(d)?.steps ?? null) }]}
+          format={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}K` : String(Math.round(v)))}
+          ariaLabel="Steps per day"
+        />
+      </Card>
+    </div>
+  {/if}
 
   <div class="section-head">
     <h2>Activity</h2>
@@ -359,6 +464,9 @@
   .grid.two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .grid.wide {
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
   }
@@ -367,6 +475,7 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .grid.two,
+    .grid.three,
     .grid.wide {
       grid-template-columns: minmax(0, 1fr);
     }
@@ -475,5 +584,44 @@
   }
   .error {
     color: var(--bad);
+  }
+
+  /* Today view: last night against the 30-day average. */
+  .compare {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .compare th {
+    font-weight: 400;
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0 0.4rem 0.3rem;
+  }
+  .compare td {
+    padding: 0.45rem 0.4rem;
+    border-top: 1px solid var(--border);
+  }
+  .compare .metric {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .compare .unit {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 0.25rem;
+  }
+  .compare .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .compare .strong {
+    color: var(--text);
+    font-weight: 600;
   }
 </style>
