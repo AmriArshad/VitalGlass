@@ -7,9 +7,18 @@
 
 import { emit } from '@tauri-apps/api/event'
 import { mockIPC } from '@tauri-apps/api/mocks'
+import { theme } from './lib/theme.svelte'
 import type { Dashboard, DailyActivity, DailyVitals, HeartRateBucket, SleepSession, Workout } from './lib/dashboard'
 
 const HISTORY = 90
+
+// ?mock&theme=breeze-light&range=7 preselects a theme and trend range,
+// so screenshots can be scripted.
+const params = new URLSearchParams(location.search)
+// The theme store has already read its saved preference by now, so set it
+// directly; the range is read later, when the dashboard mounts.
+if (params.get('theme')) theme.setPreference(params.get('theme')!)
+if (params.get('range')) localStorage.setItem('vitalglass.range', params.get('range')!)
 
 /** Small deterministic PRNG (mulberry32). */
 function rng(seed: number) {
