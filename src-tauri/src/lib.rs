@@ -3,6 +3,7 @@
 
 mod account;
 mod dashboard;
+mod desktop;
 mod state;
 mod sync;
 
@@ -26,6 +27,7 @@ pub fn run() {
             account::sign_in,
             account::sign_out,
             dashboard::dashboard,
+            desktop::desktop_theme,
             sync::sync_now,
         ])
         .run(tauri::generate_context!())

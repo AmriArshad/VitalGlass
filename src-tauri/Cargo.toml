@@ -21,3 +21,4 @@ tauri-plugin-log = "2"
 vitalglass-core = { path = "../crates/vitalglass-core" }
 tokio = { version = "1.54.1", features = ["sync", "time"] }
 chrono = "0.4.45"
+dirs = "7.0.0"
